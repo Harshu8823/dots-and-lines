@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ball Divide</title>
+<meta name="description" content="Split the bouncing balls apart by drawing walls between them. Every level adds one more ball.">
+<style>
+  :root {
+    --bg: #f9f6e5;
+    --panel: #ffffff;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --accent: #16a34a;
+    --accent-ink: #ffffff;
+    --frame: #374151;
+    --wall: #374151;
+    --grow: #2563eb;
+    --danger: #dc2626;
+    --empty: rgba(55, 65, 81, 0.10);
+    --field: #fffdf4;
+    --shadow: 0 8px 30px rgba(0,0,0,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171717;
+      --panel: #232323;
+      --ink: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --accent-ink: #0b1a10;
+      --frame: #d1d5db;
+      --wall: #d1d5db;
+      --grow: #60a5fa;
+      --danger: #f87171;
+      --empty: rgba(209, 213, 219, 0.10);
+      --field: #1e1e1e;
+      --shadow: 0 8px 30px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 1.15rem; margin: 0; color: var(--accent); letter-spacing: .02em; }
+  .stats { display: flex; gap: 16px; font-variant-numeric: tabular-nums; font-size: .95rem; }
+  .stat span { color: var(--muted); font-size: .8rem; margin-right: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .controls { display: flex; gap: 8px; }
+  button {
+    font: inherit;
+    border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; padding: 10px 20px; }
+  #orientBtn { display: inline-flex; align-items: center; gap: 6px; }
+  #orientIcon { display: inline-block; width: 18px; height: 18px; position: relative; }
+  #orientIcon::before { content: ""; position: absolute; background: var(--grow); border-radius: 2px; }
+  #orientIcon.v::before { left: 7px; top: 0; width: 4px; height: 18px; }
+  #orientIcon.h::before { top: 7px; left: 0; height: 4px; width: 18px; }
+  #stage {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px 12px;
+    min-height: 0;
+    position: relative;
+  }
+  #wrap { position: relative; }
+  canvas { display: block; border-radius: 6px; box-shadow: var(--shadow); touch-action: none; cursor: crosshair; }
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(2px);
+    border-radius: 6px;
+  }
+  .overlay[hidden] { display: none; }
+  .card {
+    background: var(--panel);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 24px 28px;
+    max-width: min(420px, 90%);
+    text-align: center;
+  }
+  .card h2 { margin: 0 0 8px; font-size: 1.5rem; }
+  .card p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
+  .card .buttons { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .card ul { text-align: left; color: var(--muted); padding-left: 1.2rem; line-height: 1.6; margin: 10px 0 0; }
+  .card kbd { font: inherit; font-size: .85em; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); border-radius: 4px; padding: 0 4px; }
+  #overTitle { color: var(--danger); }
+  #clearTitle { color: var(--accent); }
+  .hint { color: var(--muted); font-size: .85rem; padding: 0 16px 10px; text-align: center; }
+  @media (max-width: 560px) {
+    h1 { font-size: 1rem; }
+    .stats { gap: 10px; font-size: .9rem; }
+    .stat span { font-size: .7rem; }
+    .controls button { padding: 6px 9px; }
+    .btnLabel { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ball Divide</h1>
+  <div class="stats">
+    <div class="stat"><span>Level</span><b id="levelVal">1</b></div>
+    <div class="stat"><span>Mixed</span><b id="mixedVal">2</b></div>
+    <div class="stat"><span>Walls</span><b id="wallsVal">0</b></div>
+    <div class="stat"><span>Best</span><b id="bestVal">1</b></div>
+  </div>
+  <div class="controls">
+    <button id="orientBtn" title="Toggle wall direction (Space / right-click)"><i id="orientIcon" class="v"></i><span class="btnLabel" id="orientLabel">Vertical</span></button>
+    <button id="soundBtn" title="Toggle sound">🔊</button>
+    <button id="restartBtn" title="Restart level">↺</button>
+  </div>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <div class="card">
+        <h2>Ball Divide</h2>
+        <p>Keep the balls apart by building walls between them.</p>
+        <ul>
+          <li>Tap or click to fire two dots out from that point. They draw a wall as they travel to the edges.</li>
+          <li>If a ball touches the wall while it's still being drawn, the game is over.</li>
+          <li>Once every ball sits in its own section, you clear the level. Each level adds one more ball.</li>
+          <li>Switch between vertical and horizontal walls with the button, <kbd>Space</kbd>, or right-click.</li>
+        </ul>
+        <div class="buttons"><button class="primary" id="startBtn">Play</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="clearOverlay" hidden>
+      <div class="card">
+        <h2 id="clearTitle">Level cleared!</h2>
+        <p id="clearText"></p>
+        <div class="buttons"><button class="primary" id="nextBtn">Next level</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overOverlay" hidden>
+      <div class="card">
+        <h2 id="overTitle">Game over</h2>
+        <p id="overText">A ball hit your wall before it was finished.</p>
+        <div class="buttons">
+          <button class="primary" id="retryBtn">Retry level</button>
+          <button id="resetBtn">Start over</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="hint" id="hint">Space or right-click switches wall direction</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Constants (world units) ----------
+  const WORLD_W = 1000;
+  const PAD = 4;            // inset of the outer frame
+  const HW = 3;             // half wall thickness
+  const BALL_R = 14;
+  const DOT_R = 6;          // the two travelling dots
+  const GROW_SPEED = 520;   // wall growth, units / sec (each direction)
+  const MIN_GAP = 6;        // can't start a wall this close to an existing one
+  const BALL_COLORS = ['#ef4444', '#3b82f6', '#f59e0b', '#a855f7', '#10b981', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1', '#14b8a6', '#e11d48'];
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d');
+  const stage = $('stage');
+  const ui = {
+    level: $('levelVal'), mixed: $('mixedVal'), walls: $('wallsVal'), best: $('bestVal'),
+    orientIcon: $('orientIcon'), orientLabel: $('orientLabel'), soundBtn: $('soundBtn'),
+    start: $('startOverlay'), clear: $('clearOverlay'), over: $('overOverlay'),
+    clearText: $('clearText'), overText: $('overText'), hint: $('hint'),
+  };
+
+  // ---------- Storage (best effort) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  // ---------- State ----------
+  let worldH = 700;
+  let scale = 1;
+  let level = 1;
+  let best = store.get('ballDivide.best', 1);
+  let soundOn = store.get('ballDivide.sound', true);
+  let orient = 'v';
+  let state = 'intro';      // intro | play | cleared | over
+  let balls = [];
+  let rects = [];           // free regions: {x0,y0,x1,y1}
+  let walls = [];           // finished walls: {x0,y0,x1,y1}
+  let growing = null;       // wall under construction
+  let wallsUsed = 0;
+  let hover = null;         // {x,y} pointer position for preview (mouse only)
+  let hitBall = null;
+  let flashT = 0;
+
+  // ---------- Sound ----------
+  let actx = null;
+  function beep(freq, dur, type = 'sine', vol = 0.08, slideTo = null) {
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      const t = actx.currentTime;
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(actx.destination);
+      o.start(t); o.stop(t + dur);
+    } catch {}
+  }
+  const sfx = {
+    place: () => beep(520, 0.08, 'triangle'),
+    done: () => beep(760, 0.12, 'triangle', 0.07),
+    fail: () => beep(300, 0.45, 'sawtooth', 0.07, 80),
+    clear: () => { beep(660, 0.12, 'triangle'); setTimeout(() => beep(880, 0.12, 'triangle'), 110); setTimeout(() => beep(1180, 0.2, 'triangle'), 220); },
+  };
+
+  // ---------- Layout ----------
+  function chooseWorldHeight() {
+    const sw = stage.clientWidth - 32, sh = stage.clientHeight - 12;
+    const aspect = Math.min(1.5, Math.max(0.6, sh / Math.max(1, sw)));
+    return Math.round(WORLD_W * aspect);
+  }
+
+  function resize() {
+    const sw = Math.max(100, stage.clientWidth - 32);
+    const sh = Math.max(100, stage.clientHeight - 12);
+    scale = Math.min(sw / WORLD_W, sh / worldH);
+    const cssW = Math.floor(WORLD_W * scale), cssH = Math.floor(worldH * scale);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(canvas.width / WORLD_W, 0, 0, canvas.height / worldH, 0, 0);
+    draw();
+  }
+
+  // ---------- Level setup ----------
+  function ballSpeed() { return 210 + 14 * Math.min(level - 1, 15); }
+
+  function randomDir() {
+    // Avoid near-axis angles so balls cover the box.
+    let a;
+    do { a = Math.random() * Math.PI * 2; } while (Math.abs(Math.cos(a)) < 0.3 || Math.abs(Math.sin(a)) < 0.3);
+    return a;
+  }
+
+  function startLevel(n) {
+    level = n;
+    worldH = chooseWorldHeight();
+    resize();
+    rects = [{ x0: PAD, y0: PAD, x1: WORLD_W - PAD, y1: worldH - PAD }];
+    walls = [];
+    growing = null;
+    hitBall = null;
+    wallsUsed = 0;
+    balls = [];
+    const count = n + 1;
+    const r0 = rects[0];
+    const speed = ballSpeed();
+    for (let i = 0; i < count; i++) {
+      let x, y, tries = 0, ok;
+      do {
+        x = r0.x0 + HW + BALL_R + 10 + Math.random() * (r0.x1 - r0.x0 - 2 * (HW + BALL_R + 10));
+        y = r0.y0 + HW + BALL_R + 10 + Math.random() * (r0.y1 - r0.y0 - 2 * (HW + BALL_R + 10));
+        const minD = tries < 200 ? BALL_R * 6 : BALL_R * 2.5;
+        ok = balls.every(b => Math.hypot(b.x - x, b.y - y) > minD);
+        tries++;
+      } while (!ok && tries < 500);
+      const a = randomDir();
+      balls.push({ x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, r: BALL_R, color: BALL_COLORS[i % BALL_COLORS.length], rect: r0 });
+    }
+    state = 'play';
+    ui.clear.hidden = true;
+    ui.over.hidden = true;
+    ui.start.hidden = true;
+    updateHud();
+  }
+
+  // ---------- Helpers ----------
+  function rectAt(x, y) {
+    return rects.find(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) || null;
+  }
+
+  function canPlace(x, y, o) {
+    const r = rectAt(x, y);
+    if (!r) return null;
+    if (o === 'v' && (x - r.x0 < MIN_GAP + HW || r.x1 - x < MIN_GAP + HW)) return null;
+    if (o === 'h' && (y - r.y0 < MIN_GAP + HW || r.y1 - y < MIN_GAP + HW)) return null;
+    return r;
+  }
+
+  function mixedCount() {
+    // number of balls that still share their region with another ball
+    const counts = new Map();
+    for (const b of balls) counts.set(b.rect, (counts.get(b.rect) || 0) + 1);
+    let m = 0;
+    for (const c of counts.values()) if (c > 1) m += c;
+    return m;
+  }
+
+  function updateHud() {
+    ui.level.textContent = level;
+    ui.mixed.textContent = mixedCount();
+    ui.walls.textContent = wallsUsed;
+    ui.best.textContent = best;
+    ui.orientIcon.className = orient;
+    ui.orientLabel.textContent = orient === 'v' ? 'Vertical' : 'Horizontal';
+    ui.soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  }
+
+  function toggleOrient() {
+    orient = orient === 'v' ? 'h' : 'v';
+    updateHud();
+    draw();
+  }
+
+  // ---------- Input ----------
+  function toWorld(e) {
+    const b = canvas.getBoundingClientRect();
+    return { x: (e.clientX - b.left) / b.width * WORLD_W, y: (e.clientY - b.top) / b.height * worldH };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button === 2) return;              // right-click handled by contextmenu
+    e.preventDefault();
+    if (state !== 'play' || growing) return;
+    const p = toWorld(e);
+    const r = canPlace(p.x, p.y, orient);
+    if (!r) return;
+    growing = {
+      rect: r, o: orient,
+      c: orient === 'v' ? p.x : p.y,           // fixed coordinate of the wall
+      a: orient === 'v' ? p.y : p.x,           // head moving toward low edge
+      b: orient === 'v' ? p.y : p.x,           // head moving toward high edge
+      lo: orient === 'v' ? r.y0 : r.x0,
+      hi: orient === 'v' ? r.y1 : r.x1,
+    };
+    sfx.place();
+    // A ball sitting right on the spot fails immediately.
+    checkGrowHit();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    hover = e.pointerType === 'mouse' ? toWorld(e) : null;
+  });
+  canvas.addEventListener('pointerleave', () => { hover = null; });
+  canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleOrient(); });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); toggleOrient(); }
+    else if (e.code === 'Enter') {
+      if (state === 'intro') startLevel(1);
+      else if (state === 'cleared') startLevel(level + 1);
+      else if (state === 'over') startLevel(level);
+    }
+  });
+
+  $('orientBtn').addEventListener('click', toggleOrient);
+  $('soundBtn').addEventListener('click', () => { soundOn = !soundOn; store.set('ballDivide.sound', soundOn); updateHud(); });
+  $('restartBtn').addEventListener('click', () => { if (state !== 'intro') startLevel(level); });
+  $('startBtn').addEventListener('click', () => startLevel(1));
+  $('nextBtn').addEventListener('click', () => startLevel(level + 1));
+  $('retryBtn').addEventListener('click', () => startLevel(level));
+  $('resetBtn').addEventListener('click', () => startLevel(1));
+
+  // Hide the keyboard hint on touch-only devices
+  if (window.matchMedia('(hover: none)').matches) ui.hint.textContent = 'Use the wall button to switch direction';
+
+  // ---------- Physics ----------
+  function checkGrowHit() {
+    const g = growing;
+    if (!g) return false;
+    for (const b of balls) {
+      if (b.rect !== g.rect) continue;
+      let dx, dy;
+      if (g.o === 'v') {
+        dx = b.x - g.c;
+        dy = b.y - Math.max(g.a, Math.min(g.b, b.y));
+      } else {
+        dy = b.y - g.c;
+        dx = b.x - Math.max(g.a, Math.min(g.b, b.x));
+      }
+      // body of the line
+      if (Math.hypot(dx, dy) < b.r + HW) { fail(b); return true; }
+      // the two dots at the heads
+      const ha = g.o === 'v' ? [g.c, g.a] : [g.a, g.c];
+      const hb = g.o === 'v' ? [g.c, g.b] : [g.b, g.c];
+      if (Math.hypot(b.x - ha[0], b.y - ha[1]) < b.r + DOT_R || Math.hypot(b.x - hb[0], b.y - hb[1]) < b.r + DOT_R) { fail(b); return true; }
+    }
+    return false;
+  }
+
+  function fail(b) {
+    state = 'over';
+    hitBall = b;
+    flashT = 0;
+    sfx.fail();
+    ui.overText.textContent = `A ball hit your wall on level ${level}.`;
+    setTimeout(() => { if (state === 'over') ui.over.hidden = false; }, 650);
+  }
+
+  function finishWall() {
+    const g = growing, r = g.rect;
+    growing = null;
+    let A, B;
+    if (g.o === 'v') {
+      walls.push({ x0: g.c, y0: r.y0, x1: g.c, y1: r.y1 });
+      A = { x0: r.x0, y0: r.y0, x1: g.c, y1: r.y1 };
+      B = { x0: g.c, y0: r.y0, x1: r.x1, y1: r.y1 };
+    } else {
+      walls.push({ x0: r.x0, y0: g.c, x1: r.x1, y1: g.c });
+      A = { x0: r.x0, y0: r.y0, x1: r.x1, y1: g.c };
+      B = { x0: r.x0, y0: g.c, x1: r.x1, y1: r.y1 };
+    }
+    rects.splice(rects.indexOf(r), 1, A, B);
+    for (const b of balls) {
+      if (b.rect !== r) continue;
+      const pos = g.o === 'v' ? b.x : b.y;
+      b.rect = pos < g.c ? A : B;
+    }
+    wallsUsed++;
+    sfx.done();
+    if (mixedCount() === 0) {
+      state = 'cleared';
+      if (level + 1 > best) { best = level + 1; store.set('ballDivide.best', best); }
+      $('clearTitle').textContent = `Level ${level} cleared!`;
+      ui.clearText.textContent = `${balls.length} balls separated with ${wallsUsed} wall${wallsUsed === 1 ? '' : 's'}. Next up: ${balls.length + 1} balls.`;
+      sfx.clear();
+      setTimeout(() => { if (state === 'cleared') ui.clear.hidden = false; }, 500);
+    }
+    updateHud();
+  }
+
+  function stepBalls(dt) {
+    for (const b of balls) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+    }
+    // ball-ball collisions (only balls sharing a region can touch)
+    for (let i = 0; i < balls.length; i++) {
+      for (let j = i + 1; j < balls.length; j++) {
+        const p = balls[i], q = balls[j];
+        if (p.rect !== q.rect) continue;
+        const dx = q.x - p.x, dy = q.y - p.y;
+        const d = Math.hypot(dx, dy), min = p.r + q.r;
+        if (d >= min || d === 0) continue;
+        const nx = dx / d, ny = dy / d;
+        const push = (min - d) / 2;
+        p.x -= nx * push; p.y -= ny * push;
+        q.x += nx * push; q.y += ny * push;
+        const rel = (q.vx - p.vx) * nx + (q.vy - p.vy) * ny;
+        if (rel < 0) {
+          p.vx += rel * nx; p.vy += rel * ny;
+          q.vx -= rel * nx; q.vy -= rel * ny;
+        }
+      }
+    }
+    // walls of each ball's own region
+    for (const b of balls) {
+      const r = b.rect;
+      const minX = r.x0 + HW + b.r, maxX = r.x1 - HW - b.r;
+      const minY = r.y0 + HW + b.r, maxY = r.y1 - HW - b.r;
+      if (b.x < minX) { b.x = minX; b.vx = Math.abs(b.vx); }
+      else if (b.x > maxX) { b.x = maxX; b.vx = -Math.abs(b.vx); }
+      if (b.y < minY) { b.y = minY; b.vy = Math.abs(b.vy); }
+      else if (b.y > maxY) { b.y = maxY; b.vy = -Math.abs(b.vy); }
+    }
+  }
+
+  function update(dt) {
+    if (state === 'over') { flashT += dt; return; }
+    if (state === 'intro') { stepBalls(dt); return; }
+    const steps = Math.max(1, Math.ceil(Math.max(ballSpeed(), GROW_SPEED) * dt / (BALL_R * 0.4)));
+    const h = dt / steps;
+    for (let s = 0; s < steps; s++) {
+      stepBalls(h);
+      if (growing && state === 'play') {
+        growing.a = Math.max(growing.lo, growing.a - GROW_SPEED * h);
+        growing.b = Math.min(growing.hi, growing.b + GROW_SPEED * h);
+        if (checkGrowHit()) return;
+        if (growing.a <= growing.lo && growing.b >= growing.hi) finishWall();
+      }
+    }
+  }
+
+  // ---------- Rendering ----------
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  let colors = {};
+  function readColors() {
+    colors = { field: css('--field'), frame: css('--frame'), wall: css('--wall'), grow: css('--grow'), danger: css('--danger'), empty: css('--empty') };
+  }
+  readColors();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { readColors(); draw(); });
+
+  function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+  }
+
+  function draw() {
+    ctx.fillStyle = colors.field;
+    ctx.fillRect(0, 0, WORLD_W, worldH);
+
+    // region tints: secured regions take their ball's color, empty regions are shaded
+    if (state !== 'intro') {
+      const owners = new Map();
+      for (const b of balls) { const l = owners.get(b.rect) || []; l.push(b); owners.set(b.rect, l); }
+      for (const r of rects) {
+        const l = owners.get(r);
+        if (!l) ctx.fillStyle = colors.empty;
+        else if (l.length === 1) ctx.fillStyle = hexA(l[0].color, 0.13);
+        else continue;
+        ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+      }
+    }
+
+    // finished walls
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = colors.wall;
+    ctx.lineWidth = HW * 2;
+    ctx.beginPath();
+    for (const w of walls) { ctx.moveTo(w.x0, w.y0); ctx.lineTo(w.x1, w.y1); }
+    ctx.stroke();
+
+    // frame
+    ctx.strokeStyle = colors.frame;
+    ctx.lineWidth = HW * 2;
+    ctx.strokeRect(PAD, PAD, WORLD_W - 2 * PAD, worldH - 2 * PAD);
+
+    // preview of where a wall would go
+    if (state === 'play' && !growing && hover) {
+      const r = canPlace(hover.x, hover.y, orient);
+      if (r) {
+        ctx.save();
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = hexA(colors.grow.startsWith('#') ? colors.grow : '#2563eb', 0.45);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (orient === 'v') { ctx.moveTo(hover.x, r.y0); ctx.lineTo(hover.x, r.y1); }
+        else { ctx.moveTo(r.x0, hover.y); ctx.lineTo(r.x1, hover.y); }
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // wall under construction (or the one that got hit)
+    if (growing) {
+      const g = growing;
+      const hit = state === 'over';
+      const col = hit ? (Math.floor(flashT * 8) % 2 ? colors.danger : colors.grow) : colors.grow;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = HW * 2;
+      ctx.beginPath();
+      if (g.o === 'v') { ctx.moveTo(g.c, g.a); ctx.lineTo(g.c, g.b); }
+      else { ctx.moveTo(g.a, g.c); ctx.lineTo(g.b, g.c); }
+      ctx.stroke();
+      ctx.fillStyle = col;
+      const pts = g.o === 'v' ? [[g.c, g.a], [g.c, g.b]] : [[g.a, g.c], [g.b, g.c]];
+      for (const [x, y] of pts) { ctx.beginPath(); ctx.arc(x, y, DOT_R, 0, Math.PI * 2); ctx.fill(); }
+    }
+
+    // balls
+    for (const b of balls) {
+      const grad = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15, b.x, b.y, b.r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.25, b.color);
+      grad.addColorStop(1, hexA(b.color, 0.85));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      if (b === hitBall) {
+        ctx.strokeStyle = colors.danger;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r + 6 + Math.sin(flashT * 12) * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---------- Loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(1 / 30, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // Intro: a couple of demo balls bouncing behind the start card
+  function intro() {
+    worldH = chooseWorldHeight();
+    resize();
+    rects = [{ x0: PAD, y0: PAD, x1: WORLD_W - PAD, y1: worldH - PAD }];
+    balls = [0, 1].map(i => {
+      const a = randomDir();
+      return { x: 300 + i * 400, y: worldH / 2, vx: Math.cos(a) * 200, vy: Math.sin(a) * 200, r: BALL_R, color: BALL_COLORS[i], rect: rects[0] };
+    });
+    updateHud();
+  }
+
+  window.addEventListener('resize', resize);
+  intro();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
