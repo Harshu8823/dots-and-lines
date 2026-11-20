@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>Lights Out</title>
+<meta name="description" content="A reaction-time racing game. Five red lights, then lights out — beat the world's best starters across a full season.">
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14181e;
+    --panel-2: #1b2028;
+    --line: #2a313c;
+    --text: #eef1f5;
+    --muted: #8b95a5;
+    --red: #ff2a1f;
+    --red-glow: rgba(255, 42, 31, .55);
+    --lamp-off: #2a0d0c;
+    --green: #22c55e;
+    --gold: #f5c542;
+    --silver: #c8cdd5;
+    --bronze: #d08a4f;
+    --accent: #ff2a1f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  button { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  #app { max-width: 760px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; padding: 0 16px env(safe-area-inset-bottom); }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 0; border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .14em; font-size: 15px; text-transform: uppercase; cursor: pointer; background: none; border: 0; padding: 0; }
+  .brand .dots { display: flex; gap: 3px; }
+  .brand .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red-glow); display: block; }
+  .top-actions { display: flex; gap: 8px; }
+  .icon-btn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 7px 11px; font-size: 13px; cursor: pointer; }
+  .icon-btn:hover { border-color: #3a4352; }
+
+  main { flex: 1; padding: 20px 0 32px; }
+  .screen { display: none; animation: fade .25s ease; }
+  .screen.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h1, h2, h3 { margin: 0; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
+  .title-xl { font-size: clamp(38px, 11vw, 72px); font-weight: 900; letter-spacing: -.02em; line-height: .95; text-transform: uppercase; font-style: italic; }
+  .title-xl span { color: var(--red); }
+  .lede { color: var(--muted); line-height: 1.6; max-width: 52ch; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 20px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--panel-2); font-weight: 700; cursor: pointer; font-size: 15px;
+    transition: transform .06s ease, border-color .15s;
+  }
+  .btn:hover { border-color: #3a4352; }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.block { width: 100%; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  input[type=text], select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; font-size: 16px; width: 100%;
+  }
+  .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; background: none; border: 0; padding: 9px 6px; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .seg button.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .hint { font-size: 12px; color: var(--muted); }
+
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .team-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; text-align: left; font-size: 14px; }
+  .team-opt.on { border-color: var(--text); background: var(--panel-2); }
+  .swatch { width: 6px; height: 22px; border-radius: 3px; flex: none; }
+
+  /* Home */
+  .home-hero { padding: 18px 0 8px; }
+  .home-gantry { margin: 26px 0; }
+  .home-actions { display: grid; gap: 10px; }
+  .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .stat b { display: block; font-size: 20px; }
+  .stat small { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+
+  /* Gantry */
+  .gantry { display: flex; justify-content: center; gap: clamp(6px, 2.4vw, 16px); padding: clamp(10px, 3vw, 18px); background: #050607; border-radius: 16px; border: 1px solid #1d2229; position: relative; }
+  .gantry::before { content: ""; position: absolute; left: 6%; right: 6%; top: -10px; height: 10px; background: #1d2229; border-radius: 4px 4px 0 0; }
+  .pod { background: #0f1114; border: 1px solid #23282f; border-radius: 12px; padding: clamp(6px, 1.6vw, 10px); display: flex; flex-direction: column; gap: clamp(6px, 1.6vw, 10px); }
+  .lamp { width: clamp(34px, 11vw, 64px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3a1412, var(--lamp-off) 60%); box-shadow: inset 0 -3px 6px rgba(0,0,0,.6); transition: background .03s, box-shadow .03s; }
+  .lamp.dim { background: radial-gradient(circle at 35% 30%, #1a1d22, #101216 60%); }
+  .pod.on .lamp.red { background: radial-gradient(circle at 35% 30%, #ffb0a8, var(--red) 45%, #b40e06 100%); box-shadow: 0 0 22px var(--red-glow), 0 0 4px #fff inset; }
+  .gantry.small .lamp { width: clamp(22px, 7vw, 40px); }
+
+  /* Start screen */
+  #screen-start { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  .start-stage { min-height: min(68vh, 560px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; border-radius: 18px; cursor: pointer; padding: 24px 0; position: relative; }
+  .start-meta { text-align: center; }
+  .start-meta .eyebrow { margin-bottom: 4px; }
+  .start-meta h2 { font-size: 22px; }
+  .start-msg { font-size: clamp(18px, 5vw, 24px); font-weight: 800; text-align: center; min-height: 2.6em; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; padding: 0 8px; }
+  .start-msg small { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .start-time { font-size: clamp(56px, 18vw, 110px); font-weight: 900; letter-spacing: -.03em; line-height: 1; font-style: italic; }
+  .start-time.good { color: var(--green); }
+  .start-time.bad { color: var(--red); }
+  .start-after { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .flash-red { animation: flashRed .5s ease; }
+  @keyframes flashRed { 0% { background: rgba(255,42,31,.35); } 100% { background: transparent; } }
+
+  /* Tables */
+  table.cls { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.cls th { text-align: left; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  table.cls td { padding: 9px 6px; border-bottom: 1px solid #1c2129; vertical-align: middle; }
+  table.cls tr.me td { background: rgba(255,42,31,.10); }
+  table.cls tr.me td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+  table.cls td.r, table.cls th.r { text-align: right; }
+  .pos { font-weight: 800; width: 34px; }
+  .drv { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .drv .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drv .tm { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drv .txt { min-width: 0; display: flex; flex-direction: column; }
+  .tag-jump { color: var(--red); font-weight: 800; font-size: 12px; }
+  .p1 { color: var(--gold); } .p2 { color: var(--silver); } .p3 { color: var(--bronze); }
+  @media (max-width: 480px) { .hide-sm { display: none; } table.cls { font-size: 13px; } }
+
+  /* Result */
+  .result-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .big-stat { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .big-stat b { font-size: clamp(30px, 9vw, 46px); font-weight: 900; font-style: italic; display: block; line-height: 1.05; }
+  .big-stat small { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--panel-2); border: 1px solid var(--line); }
+  .pill.red { background: rgba(255,42,31,.15); border-color: rgba(255,42,31,.5); color: #ff8d86; }
+  .pill.green { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.45); color: #7ee2a3; }
+
+  /* Calendar */
+  .cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .cal-item { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+  .cal-item.next { border-color: var(--red); }
+  .cal-item .rd { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+  .cal-item .res { margin-top: 4px; font-weight: 800; }
+
+  .progress { height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .progress i { display: block; height: 100%; background: var(--red); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; }
+  .tabs button.on { color: var(--text); background: var(--panel-2); }
+
+  .trophy { font-size: 64px; text-align: center; }
+  .center { text-align: center; }
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 60px; }
+  .spark i { flex: 1; background: var(--red); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .85; }
+  .spark i.jump { background: #555; }
+  footer.foot { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0 20px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <button class="brand" id="brand" aria-label="Home"><span class="dots"><i></i><i></i><i></i><i></i><i></i></span>Lights Out</button>
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-sound" aria-label="Toggle sound">🔊</button>
+      <button class="icon-btn" id="btn-standings" hidden>Standings</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section class="screen" id="screen-home">
+      <div class="home-hero">
+        <div class="eyebrow">A reaction-time racing game</div>
+        <h1 class="title-xl" style="margin-top:8px">It's lights out<br><span>and away we go</span></h1>
+      </div>
+      <div class="home-gantry"><div class="gantry" id="home-gantry"></div></div>
+      <p class="lede">Five red lights come on, one a second. Then they go out. React faster than the world's best starters, race by race, across a whole championship season. Move too early and you're penalised for a jump start.</p>
+      <div class="home-actions" style="margin-top:18px">
+        <button class="btn primary block" id="btn-continue" hidden>Continue season</button>
+        <button class="btn block" id="btn-new">New season</button>
+        <button class="btn block" id="btn-practice">Practice starts</button>
+      </div>
+      <div class="stat-strip">
+        <div class="stat"><small>Personal best</small><b class="num" id="st-pb">—</b></div>
+        <div class="stat"><small>Titles</small><b class="num" id="st-titles">0</b></div>
+        <div class="stat"><small>Race wins</small><b class="num" id="st-wins">0</b></div>
+      </div>
+    </section>
+
+    <!-- SETUP -->
+    <section class="screen" id="screen-setup">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">New season</div>
+          <h2 style="font-size:28px;margin-top:4px">Sign your contract</h2>
+        </div>
+        <div class="card stack">
+          <div class="row">
+            <label class="field grow">Driver name
+              <input type="text" id="in-name" maxlength="20" placeholder="Your name" autocomplete="off">
+            </label>
+            <label class="field" style="width:110px">Code
+              <input type="text" id="in-code" maxlength="3" placeholder="YOU" autocomplete="off" style="text-transform:uppercase">
+            </label>
+          </div>
+          <div class="field">Team
+            <div class="team-grid" id="team-grid"></div>
+          </div>
+          <div class="field">Rival difficulty
+            <div class="seg" id="seg-diff">
+              <button data-v="rookie">Rookie</button>
+              <button data-v="pro">Pro</button>
+              <button data-v="legend">Legend</button>
+            </div>
+            <span class="hint" id="diff-hint"></span>
+          </div>
+          <div class="field">Season length
+            <div class="seg" id="seg-len">
+              <button data-v="6">Sprint · 6</button>
+              <button data-v="12">Half · 12</button>
+              <button data-v="24">Full · 24</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-setup-back">Back</button>
+          <button class="btn primary grow" id="btn-setup-go">Start season</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRE-RACE -->
+    <section class="screen" id="screen-prerace">
+      <div class="stack">
+        <div>
+          <div class="eyebrow" id="pr-round"></div>
+          <h2 style="font-size:32px;margin-top:4px" id="pr-venue"></h2>
+          <div class="progress" style="margin-top:12px"><i id="pr-progress"></i></div>
+        </div>
+        <div class="result-hero">
+          <div class="big-stat"><small>Championship</small><b class="num" id="pr-champ">—</b><span class="hint" id="pr-points"></span></div>
+          <div class="big-stat"><small>Last start</small><b class="num" id="pr-last">—</b><span class="hint" id="pr-last-pos"></span></div>
+        </div>
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:8px">Top of the standings</div>
+          <table class="cls"><tbody id="pr-top"></tbody></table>
+        </div>
+        <button class="btn primary block" id="btn-to-grid" style="padding:18px">Line up on the grid</button>
+      </div>
+    </section>
+
+    <!-- START -->
+    <section class="screen" id="screen-start">
+      <div class="start-stage" id="stage">
+        <div class="start-meta">
+          <div class="eyebrow" id="ss-eyebrow"></div>
+          <h2 id="ss-title"></h2>
+        </div>
+        <div class="gantry" id="race-gantry"></div>
+        <div class="start-msg" id="ss-msg"></div>
+        <div class="start-after" id="ss-after"></div>
+      </div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="screen" id="screen-result">
+      <div class="stack">
+        <div>
+          <div class="eyebrow" id="rs-round"></div>
+          <h2 style="font-size:28px;margin-top:4px" id="rs-head"></h2>
+        </div>
+        <div class="result-hero">
+          <div class="big-stat"><small>Reaction</small><b class="num" id="rs-time"></b><span id="rs-time-note"></span></div>
+          <div class="big-stat"><small>Finished</small><b class="num" id="rs-pos"></b><span class="hint" id="rs-pts"></span></div>
+        </div>
+        <div class="card" style="padding:8px 10px">
+          <table class="cls">
+            <thead><tr><th>Pos</th><th>Driver</th><th class="r">Reaction</th><th class="r hide-sm">Gap</th><th class="r">Pts</th></tr></thead>
+            <tbody id="rs-table"></tbody>
+          </table>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-rs-standings">Standings</button>
+          <button class="btn primary grow" id="btn-rs-next">Next race</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STANDINGS -->
+    <section class="screen" id="screen-standings">
+      <div class="stack">
+        <div>
+          <div class="eyebrow" id="sd-sub"></div>
+          <h2 style="font-size:28px;margin-top:4px">Championship</h2>
+        </div>
+        <div class="tabs" id="sd-tabs">
+          <button data-t="drivers" class="on">Drivers</button>
+          <button data-t="teams">Teams</button>
+          <button data-t="calendar">Calendar</button>
+          <button data-t="me">My starts</button>
+        </div>
+        <div id="sd-body"></div>
+        <button class="btn primary block" id="btn-sd-back">Back</button>
+      </div>
+    </section>
+
+    <!-- SEASON END -->
+    <section class="screen" id="screen-final">
+      <div class="stack">
+        <div class="trophy" id="fn-trophy">🏆</div>
+        <div class="center">
+          <div class="eyebrow">Season complete</div>
+          <h2 style="font-size:30px;margin-top:6px" id="fn-head"></h2>
+          <p class="lede" style="margin:10px auto 0" id="fn-sub"></p>
+        </div>
+        <div class="stat-strip" style="margin-top:0">
+          <div class="stat"><small>Wins</small><b class="num" id="fn-wins"></b></div>
+          <div class="stat"><small>Avg reaction</small><b class="num" id="fn-avg"></b></div>
+          <div class="stat"><small>Jump starts</small><b class="num" id="fn-jumps"></b></div>
+        </div>
+        <div class="card" style="padding:8px 10px">
+          <table class="cls"><tbody id="fn-table"></tbody></table>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-fn-home">Home</button>
+          <button class="btn primary grow" id="btn-fn-new">New season</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="foot">Lights Out · drivers and teams are fictional · tap, click or press Space</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Data ----------
+  const TEAMS = [
+    { id: 'vortex',  name: 'Vortex Racing',     color: '#e8002d' },
+    { id: 'apex',    name: 'Apex Motorsport',   color: '#00d2be' },
+    { id: 'nordwind',name: 'Nordwind GP',       color: '#3671c6' },
+    { id: 'solaris', name: 'Solaris Racing',    color: '#ff8000' },
+    { id: 'kestrel', name: 'Kestrel',           color: '#229971' },
+    { id: 'iron',    name: 'Ironbridge',        color: '#b6babd' },
+    { id: 'meridian',name: 'Meridian',          color: '#ff87bc' },
+    { id: 'falcon',  name: 'Falcon Works',      color: '#6692ff' },
+    { id: 'tempest', name: 'Tempest',           color: '#52e252' },
+    { id: 'aurora',  name: 'Aurora',            color: '#c9a227' },
+  ];
+
+  // mean / sd are reaction times in seconds at "Pro" difficulty; jump = jump-start probability per race
+  const DRIVERS = [
+    { id: 'mor', name: 'Luca Moretti',      code: 'MOR', team: 'vortex',   mean: .198, sd: .018, jump: .012 },
+    { id: 'hal', name: 'Erik Halvorsen',    code: 'HAL', team: 'vortex',   mean: .214, sd: .022, jump: .008 },
+    { id: 'ash', name: 'James Ashford',     code: 'ASH', team: 'apex',     mean: .201, sd: .016, jump: .006 },
+    { id: 'tan', name: 'Kenji Tanaka',      code: 'TAN', team: 'apex',     mean: .209, sd: .020, jump: .010 },
+    { id: 'vdb', name: 'Max van den Berg',  code: 'VDB', team: 'nordwind', mean: .195, sd: .021, jump: .018 },
+    { id: 'rui', name: 'Diego Ruiz',        code: 'RUI', team: 'nordwind', mean: .222, sd: .024, jump: .010 },
+    { id: 'lef', name: 'Théo Lefèvre',      code: 'LEF', team: 'solaris',  mean: .204, sd: .019, jump: .009 },
+    { id: 'osu', name: 'Liam O\'Sullivan',  code: 'OSU', team: 'solaris',  mean: .211, sd: .021, jump: .007 },
+    { id: 'kow', name: 'Adam Kowalski',     code: 'KOW', team: 'kestrel',  mean: .218, sd: .023, jump: .008 },
+    { id: 'sil', name: 'Rafael Silva',      code: 'SIL', team: 'kestrel',  mean: .207, sd: .020, jump: .014 },
+    { id: 'bec', name: 'Felix Becker',      code: 'BEC', team: 'iron',     mean: .226, sd: .025, jump: .006 },
+    { id: 'nak', name: 'Ren Nakamura',      code: 'NAK', team: 'iron',     mean: .216, sd: .022, jump: .009 },
+    { id: 'dub', name: 'Hugo Dubois',       code: 'DUB', team: 'meridian', mean: .220, sd: .022, jump: .010 },
+    { id: 'cha', name: 'Arjun Chandra',     code: 'CHA', team: 'meridian', mean: .213, sd: .021, jump: .011 },
+    { id: 'ric', name: 'Marco Ricci',       code: 'RIC', team: 'falcon',   mean: .229, sd: .026, jump: .012 },
+    { id: 'lin', name: 'Oskar Lindqvist',   code: 'LIN', team: 'falcon',   mean: .224, sd: .024, jump: .008 },
+    { id: 'mar', name: 'Pablo Martín',      code: 'MAR', team: 'tempest',  mean: .232, sd: .027, jump: .015 },
+    { id: 'wil', name: 'Noah Williams',     code: 'WIL', team: 'tempest',  mean: .227, sd: .025, jump: .009 },
+    { id: 'ham', name: 'Yusuf Hamdan',      code: 'HAM', team: 'aurora',   mean: .235, sd: .028, jump: .011 },
+    { id: 'cos', name: 'Mateo Costa',       code: 'COS', team: 'aurora',   mean: .230, sd: .026, jump: .010 },
+  ];
+
+  const CALENDAR = [
+    ['Melbourne', '🇦🇺'], ['Shanghai', '🇨🇳'], ['Suzuka', '🇯🇵'], ['Sakhir', '🇧🇭'],
+    ['Jeddah', '🇸🇦'], ['Miami', '🇺🇸'], ['Montréal', '🇨🇦'], ['Monte Carlo', '🇲🇨'],
+    ['Barcelona', '🇪🇸'], ['Spielberg', '🇦🇹'], ['Silverstone', '🇬🇧'], ['Spa-Francorchamps', '🇧🇪'],
+    ['Budapest', '🇭🇺'], ['Zandvoort', '🇳🇱'], ['Monza', '🇮🇹'], ['Madrid', '🇪🇸'],
+    ['Baku', '🇦🇿'], ['Marina Bay', '🇸🇬'], ['Austin', '🇺🇸'], ['Mexico City', '🇲🇽'],
+    ['São Paulo', '🇧🇷'], ['Las Vegas', '🇺🇸'], ['Lusail', '🇶🇦'], ['Yas Marina', '🇦🇪'],
+  ];
+  // Evenly spread shorter seasons across the full calendar
+  function pickCalendar(n) {
+    if (n >= CALENDAR.length) return CALENDAR.map((c, i) => i);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(Math.round(i * (CALENDAR.length - 1) / (n - 1)));
+    return out;
+  }
+
+  const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+  const DIFF = {
+    rookie: { offset: +0.050, label: 'Rivals react around 0.25–0.29 s. Good for getting a feel.' },
+    pro:    { offset:  0.000, label: 'Rivals react around 0.20–0.24 s, close to real elite starters.' },
+    legend: { offset: -0.025, label: 'Rivals react around 0.17–0.21 s. You need to be perfect.' },
+  };
+  const MIN_HUMAN = 0.100; // anything faster is anticipation → jump start
+
+  // ---------- Storage ----------
+  const KEY = 'lightsout.v1';
+  const defaults = () => ({
+    sound: true,
+    profile: { name: '', code: '', team: 'vortex', diff: 'pro', len: 24 },
+    career: { pb: null, titles: 0, wins: 0, seasons: 0 },
+    season: null,
+  });
+  let store = defaults();
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) store = Object.assign(defaults(), JSON.parse(raw));
+  } catch (e) { /* storage unavailable: play without persistence */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+  // ---------- Utils ----------
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (t) => t == null ? '—' : t.toFixed(3);
+  const ord = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const teamOf = (id) => TEAMS.find((t) => t.id === id) || TEAMS[0];
+  function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  // ---------- Audio ----------
+  let actx = null;
+  function beep(freq = 620, dur = 0.12, vol = 0.18) {
+    if (!store.sound) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g).connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) {}
+  }
+  function unlockAudio() { if (store.sound && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+
+  // ---------- Gantry ----------
+  function buildGantry(root, small) {
+    root.innerHTML = '';
+    if (small) root.classList.add('small');
+    for (let i = 0; i < 5; i++) {
+      const pod = el('div', 'pod');
+      pod.append(el('div', 'lamp dim'), el('div', 'lamp dim'), el('div', 'lamp red'), el('div', 'lamp red'));
+      root.append(pod);
+    }
+    return [...root.children];
+  }
+  function setLights(pods, n) { pods.forEach((p, i) => p.classList.toggle('on', i < n)); }
+
+  // Idle animation on the home screen
+  const homePods = buildGantry($('#home-gantry'), true);
+  let homeAnim = null;
+  function startHomeAnim() {
+    stopHomeAnim();
+    let n = 0;
+    homeAnim = setInterval(() => { n = (n + 1) % 8; setLights(homePods, Math.min(n, 5)); }, 650);
+  }
+  function stopHomeAnim() { clearInterval(homeAnim); homeAnim = null; }
+
+  // ---------- Navigation ----------
+  let current = 'home';
+  function show(name) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
+    current = name;
+    if (name === 'home') startHomeAnim(); else stopHomeAnim();
+    $('#btn-standings').hidden = !store.season || name === 'standings' || name === 'start' || name === 'home' || name === 'setup';
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- Home ----------
+  function renderHome() {
+    $('#btn-continue').hidden = !store.season;
+    $('#btn-new').classList.toggle('primary', !store.season);
+    $('#st-pb').textContent = fmt(store.career.pb);
+    $('#st-titles').textContent = store.career.titles;
+    $('#st-wins').textContent = store.career.wins;
+    show('home');
+  }
+
+  // ---------- Setup ----------
+  let draft = null;
+  function renderSetup() {
+    draft = Object.assign({}, store.profile);
+    $('#in-name').value = draft.name;
+    $('#in-code').value = draft.code;
+    const grid = $('#team-grid'); grid.innerHTML = '';
+    TEAMS.forEach((t) => {
+      const b = el('button', 'team-opt' + (t.id === draft.team ? ' on' : ''), `<span class="swatch" style="background:${t.color}"></span>${esc(t.name)}`);
+      b.type = 'button';
+      b.onclick = () => { draft.team = t.id; grid.querySelectorAll('.team-opt').forEach((x) => x.classList.remove('on')); b.classList.add('on'); };
+      grid.append(b);
+    });
+    syncSeg('#seg-diff', draft.diff); syncSeg('#seg-len', String(draft.len));
+    $('#diff-hint').textContent = DIFF[draft.diff].label;
+    show('setup');
+  }
+  function syncSeg(sel, v) { document.querySelectorAll(sel + ' button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); }
+  $('#seg-diff').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; draft.diff = b.dataset.v; syncSeg('#seg-diff', draft.diff); $('#diff-hint').textContent = DIFF[draft.diff].label; });
+  $('#seg-len').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; draft.len = +b.dataset.v; syncSeg('#seg-len', b.dataset.v); });
+  $('#in-name').addEventListener('input', (e) => {
+    const c = $('#in-code');
+    if (!c.dataset.touched) c.value = e.target.value.replace(/[^a-z]/gi, '').slice(0, 3).toUpperCase();
+  });
+  $('#in-code').addEventListener('input', (e) => { e.target.dataset.touched = '1'; });
+
+  function startSeason() {
+    const name = $('#in-name').value.trim() || 'You';
+    let code = $('#in-code').value.replace(/[^a-z]/gi, '').slice(0, 3).toUpperCase();
+    if (code.length < 3) code = (name.replace(/[^a-z]/gi, '').toUpperCase() + 'YOU').slice(0, 3);
+    draft.name = name; draft.code = code;
+    store.profile = draft;
+
+    // The player takes the second seat of the chosen team
+    let replaced = false;
+    const roster = DRIVERS.map((d) => {
+      if (!replaced && d.team === draft.team && DRIVERS.filter((x) => x.team === d.team).indexOf(d) === 1) {
+        replaced = true;
+        return { id: 'me', name, code, team: draft.team, me: true };
+      }
+      return Object.assign({}, d);
+    });
+    const standings = {};
+    roster.forEach((d) => { standings[d.id] = { pts: 0, wins: 0, podiums: 0, best: 99, finishes: [] }; });
+    store.season = {
+      diff: draft.diff,
+      rounds: pickCalendar(draft.len),
+      round: 0,
+      roster, standings,
+      results: [],
+      lastRace: null,
+    };
+    save();
+    renderPrerace();
+  }
+
+  // ---------- Season helpers ----------
+  const S = () => store.season;
+  const driver = (id) => S().roster.find((d) => d.id === id);
+  function sortedStandings() {
+    const s = S();
+    return s.roster.map((d) => ({ d, st: s.standings[d.id] }))
+      .sort((a, b) => b.st.pts - a.st.pts || b.st.wins - a.st.wins || b.st.podiums - a.st.podiums || a.st.best - b.st.best);
+  }
+  function teamStandings() {
+    const s = S(), m = {};
+    TEAMS.forEach((t) => m[t.id] = { t, pts: 0, wins: 0 });
+    s.roster.forEach((d) => { m[d.team].pts += s.standings[d.id].pts; m[d.team].wins += s.standings[d.id].wins; });
+    return Object.values(m).sort((a, b) => b.pts - a.pts || b.wins - a.wins);
+  }
+  function venue(i) { const [city, flag] = CALENDAR[S().rounds[i]]; return { city, flag }; }
+
+  function driverCell(d) {
+    const t = teamOf(d.team);
+    return `<div class="drv"><span class="swatch" style="background:${t.color}"></span><div class="txt"><span class="nm">${esc(d.name)}${d.me ? ' <span class="pill" style="padding:1px 6px;font-size:10px">YOU</span>' : ''}</span><span class="tm">${esc(t.name)}</span></div></div>`;
+  }
+  const posClass = (p) => p === 1 ? 'p1' : p === 2 ? 'p2' : p === 3 ? 'p3' : '';
+
+  // ---------- Pre-race ----------
+  function renderPrerace() {
+    const s = S();
+    const v = venue(s.round);
+    $('#pr-round').textContent = `Round ${s.round + 1} of ${s.rounds.length}`;
+    $('#pr-venue').textContent = `${v.flag} ${v.city}`;
+    $('#pr-progress').style.width = (s.round / s.rounds.length * 100) + '%';
+    const table = sortedStandings();
+    const myIdx = table.findIndex((r) => r.d.me);
+    $('#pr-champ').textContent = s.round === 0 ? '—' : ord(myIdx + 1);
+    $('#pr-points').textContent = s.round === 0 ? 'Season opener' : `${table[myIdx].st.pts} pts · leader ${table[0].st.pts}`;
+    if (s.lastRace) {
+      $('#pr-last').textContent = s.lastRace.jump ? 'JUMP' : fmt(s.lastRace.t);
+      $('#pr-last-pos').textContent = `${ord(s.lastRace.pos)} in ${venue(s.round - 1).city}`;
+    } else { $('#pr-last').textContent = '—'; $('#pr-last-pos').textContent = 'No starts yet'; }
+    const top = table.slice(0, 5);
+    if (myIdx >= 5) top.push(table[myIdx]);
+    $('#pr-top').innerHTML = top.map((r) => {
+      const p = table.indexOf(r) + 1;
+      return `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(p)}">${p}</td><td>${driverCell(r.d)}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`;
+    }).join('');
+    show('prerace');
+  }
+
+  // ---------- Start sequence ----------
+  const racePods = buildGantry($('#race-gantry'));
+  const stage = $('#stage');
+  let mode = 'race'; // 'race' | 'practice'
+  let phase = 'idle'; // idle → armed → lighting → out → done
+  let timers = [];
+  let tOut = 0;
+  let practiceLog = [];
+
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+  function openStart(m) {
+    mode = m;
+    phase = 'idle';
+    clearTimers();
+    setLights(racePods, 0);
+    if (mode === 'race') {
+      const v = venue(S().round);
+      $('#ss-eyebrow').textContent = `Round ${S().round + 1} · ${v.flag} ${v.city}`;
+      $('#ss-title').textContent = 'Race start';
+    } else {
+      $('#ss-eyebrow').textContent = 'Practice';
+      const valid = practiceLog.filter((x) => x != null);
+      $('#ss-title').textContent = valid.length ? `Session best ${fmt(Math.min(...valid))}` : 'Find your rhythm';
+    }
+    msg('Tap anywhere or press Space', 'when you\'re ready — then wait for lights out');
+    $('#ss-after').innerHTML = '';
+    show('start');
+  }
+
+  function msg(main, sub, cls) {
+    $('#ss-msg').innerHTML = (cls ? `<div class="start-time ${cls}">${main}</div>` : `<div>${main}</div>`) + (sub ? `<small>${sub}</small>` : '');
+  }
+
+  function arm() {
+    phase = 'armed';
+    msg('Hold…', 'Lights coming on');
+    $('#ss-after').innerHTML = '';
+    const pre = 900 + Math.random() * 900;
+    for (let i = 1; i <= 5; i++) {
+      later(() => { phase = 'lighting'; setLights(racePods, i); beep(560 + i * 20, 0.09, 0.12); if (i === 5) msg('&nbsp;', ''); }, pre + (i - 1) * 1000);
+    }
+    // Random hold after the 5th light: 0.2 – 3.0 s, weighted toward the middle
+    const hold = 200 + (Math.random() * 0.6 + Math.random() * 0.4) * 2800;
+    later(lightsOut, pre + 4000 + hold);
+  }
+
+  function lightsOut() {
+    requestAnimationFrame(() => {
+      setLights(racePods, 0);
+      tOut = performance.now();
+      phase = 'out';
+    });
+  }
+
+  function press(e) {
+    if (current !== 'start') return;
+    unlockAudio();
+    if (phase === 'idle') { arm(); return; }
+    if (phase === 'done') { if (mode === 'practice') openStart('practice'); return; }
+    if (phase === 'armed' || phase === 'lighting') { finish(null, true); return; }
+    if (phase === 'out') {
+      const now = (e && e.timeStamp && e.timeStamp > tOut - 50 && e.timeStamp < tOut + 10000) ? e.timeStamp : performance.now();
+      const t = (now - tOut) / 1000;
+      finish(t, t < MIN_HUMAN);
+    }
+  }
+
+  function finish(t, jump) {
+    clearTimers();
+    phase = 'done';
+    if (jump) {
+      setLights(racePods, 0);
+      stage.classList.remove('flash-red'); void stage.offsetWidth; stage.classList.add('flash-red');
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+      beep(180, 0.35, 0.2);
+    }
+    const shown = jump ? 'JUMP START' : fmt(t);
+    const isPb = !jump && (store.career.pb == null || t < store.career.pb);
+    if (isPb) { store.career.pb = t; save(); }
+
+    if (mode === 'practice') {
+      practiceLog.push(jump ? null : t);
+      const valid = practiceLog.filter((x) => x != null);
+      const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+      const sub = jump
+        ? (t != null ? `${fmt(t)} s is anticipation, not reaction` : 'You moved before the lights went out')
+        : `${isPb ? '🏅 New personal best · ' : ''}Session avg ${fmt(avg)} · ${valid.length} start${valid.length === 1 ? '' : 's'}`;
+      msg(shown, sub, jump ? 'bad' : (t < 0.22 ? 'good' : ''));
+      $('#ss-after').innerHTML = '';
+      const again = el('button', 'btn primary', 'Go again'); again.onclick = (ev) => { ev.stopPropagation(); openStart('practice'); };
+      const home = el('button', 'btn', 'Home'); home.onclick = (ev) => { ev.stopPropagation(); renderHome(); };
+      $('#ss-after').append(home, again);
+      return;
+    }
+
+    // Race mode: simulate the field
+    const res = runRace(jump ? null : t, jump);
+    const me = res.find((r) => r.id === 'me');
+    const sub = jump ? (t != null ? `${fmt(t)} s — too quick to be a reaction` : 'You moved before the lights went out') : `${isPb ? '🏅 New personal best · ' : ''}You ${me.pos === 1 ? 'won the start!' : 'finished ' + ord(me.pos)}`;
+    msg(shown, sub, jump ? 'bad' : (me.pos <= 3 ? 'good' : ''));
+    $('#ss-after').innerHTML = '';
+    const go = el('button', 'btn primary', 'Race classification →'); go.onclick = (ev) => { ev.stopPropagation(); renderResult(); };
+    $('#ss-after').append(go);
+  }
+
+  function runRace(myT, myJump) {
+    const s = S();
+    const off = DIFF[s.diff].offset;
+    const entries = s.roster.map((d) => {
+      if (d.me) return { id: d.id, t: myT, jump: myJump };
+      if (Math.random() < d.jump) return { id: d.id, t: null, jump: true };
+      let t = d.mean + off + gauss() * d.sd;
+      if (Math.random() < 0.04) t += 0.04 + Math.random() * 0.12; // occasional bog-down
+      return { id: d.id, t: Math.max(0.12, t), jump: false };
+    });
+    entries.sort((a, b) => (a.jump - b.jump) || (a.jump ? Math.random() - 0.5 : a.t - b.t));
+    entries.forEach((e, i) => {
+      e.pos = i + 1;
+      e.pts = e.jump ? 0 : (POINTS[i] || 0);
+      const st = s.standings[e.id];
+      st.pts += e.pts;
+      if (e.pos === 1 && !e.jump) st.wins++;
+      if (e.pos <= 3 && !e.jump) st.podiums++;
+      st.best = Math.min(st.best, e.pos);
+      st.finishes.push(e.jump ? 'J' : e.pos);
+    });
+    const me = entries.find((e) => e.id === 'me');
+    if (me.pos === 1 && !me.jump) store.career.wins++;
+    s.results.push({ round: s.round, venue: s.rounds[s.round], cls: entries });
+    s.lastRace = { t: me.t, jump: me.jump, pos: me.pos };
+    s.round++;
+    save();
+    return entries;
+  }
+
+  stage.addEventListener('pointerdown', (e) => { if (e.button > 0) return; if (e.target.closest('button')) return; e.preventDefault(); press(e); });
+  stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('keydown', (e) => {
+    if (current !== 'start' || e.repeat) return;
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (phase === 'done' && mode === 'race') { e.preventDefault(); renderResult(); return; }
+      e.preventDefault(); press(e);
+    }
+    if (e.code === 'Escape' && mode === 'practice') { clearTimers(); renderHome(); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    // Don't let a hidden tab ruin a start: reset if the sequence was running
+    if (document.hidden && current === 'start' && (phase === 'armed' || phase === 'lighting' || phase === 'out')) {
+      clearTimers(); phase = 'idle'; setLights(racePods, 0);
+      msg('Start aborted', 'Tap anywhere or press Space to restart the procedure');
+    }
+  });
+
+  // ---------- Result ----------
+  function renderResult() {
+    const s = S();
+    const r = s.results[s.results.length - 1];
+    const v = CALENDAR[r.venue];
+    const me = r.cls.find((e) => e.id === 'me');
+    const winner = r.cls[0];
+    $('#rs-round').textContent = `Round ${r.round + 1} · ${v[1]} ${v[0]}`;
+    $('#rs-head').textContent = me.jump ? 'Jump start — disqualified' : me.pos === 1 ? 'Holeshot! You won the start' : me.pos <= 3 ? 'On the podium' : me.pos <= 10 ? 'In the points' : 'Outside the points';
+    $('#rs-time').textContent = me.jump ? 'JUMP' : fmt(me.t);
+    $('#rs-time').style.color = me.jump ? 'var(--red)' : '';
+    const note = $('#rs-time-note');
+    if (me.jump) { note.className = 'pill red'; note.textContent = '0 points'; }
+    else if (me.pos === 1) { note.className = 'pill green'; const second = r.cls[1]; note.textContent = `+${fmt(second.t - me.t)} clear`; }
+    else { note.className = 'pill'; note.textContent = `+${fmt(me.t - winner.t)} to ${driver(winner.id).code}`; }
+    $('#rs-pos').textContent = me.jump ? 'DSQ' : ord(me.pos);
+    $('#rs-pos').className = 'num ' + posClass(me.jump ? 0 : me.pos);
+    $('#rs-pts').textContent = `+${me.pts} pts · ${s.standings.me.pts} total`;
+    $('#rs-table').innerHTML = r.cls.map((e) => {
+      const d = driver(e.id);
+      const gap = e.jump ? '' : e.pos === 1 ? '' : '+' + fmt(e.t - winner.t);
+      return `<tr class="${d.me ? 'me' : ''}"><td class="pos ${e.jump ? '' : posClass(e.pos)}">${e.jump ? '—' : e.pos}</td><td>${driverCell(d)}</td><td class="r num">${e.jump ? '<span class="tag-jump">JUMP</span>' : fmt(e.t)}</td><td class="r num hide-sm" style="color:var(--muted)">${gap}</td><td class="r num"><b>${e.pts || ''}</b></td></tr>`;
+    }).join('');
+    $('#btn-rs-next').textContent = s.round >= s.rounds.length ? 'Season finale →' : `Next: ${venue(s.round).city}`;
+    show('result');
+  }
+
+  // ---------- Standings ----------
+  let sdTab = 'drivers';
+  let sdReturn = 'prerace';
+  function renderStandings(from) {
+    if (from) sdReturn = from;
+    const s = S();
+    $('#sd-sub').textContent = s.round >= s.rounds.length ? 'Final standings' : `After round ${s.round} of ${s.rounds.length}`;
+    document.querySelectorAll('#sd-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === sdTab));
+    const body = $('#sd-body');
+    if (sdTab === 'drivers') {
+      const tb = sortedStandings();
+      body.innerHTML = `<div class="card" style="padding:8px 10px"><table class="cls"><thead><tr><th>Pos</th><th>Driver</th><th class="r hide-sm">Wins</th><th class="r hide-sm">Pod.</th><th class="r">Pts</th></tr></thead><tbody>${
+        tb.map((r, i) => `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(i + 1)}">${i + 1}</td><td>${driverCell(r.d)}</td><td class="r num hide-sm">${r.st.wins}</td><td class="r num hide-sm">${r.st.podiums}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`).join('')
+      }</tbody></table></div>`;
+    } else if (sdTab === 'teams') {
+      const tb = teamStandings();
+      body.innerHTML = `<div class="card" style="padding:8px 10px"><table class="cls"><thead><tr><th>Pos</th><th>Team</th><th class="r">Wins</th><th class="r">Pts</th></tr></thead><tbody>${
+        tb.map((r, i) => `<tr class="${r.t.id === store.profile.team ? 'me' : ''}"><td class="pos ${posClass(i + 1)}">${i + 1}</td><td><div class="drv"><span class="swatch" style="background:${r.t.color}"></span><span class="nm">${esc(r.t.name)}</span></div></td><td class="r num">${r.wins}</td><td class="r num"><b>${r.pts}</b></td></tr>`).join('')
+      }</tbody></table></div>`;
+    } else if (sdTab === 'calendar') {
+      body.innerHTML = `<div class="cal">${s.rounds.map((ci, i) => {
+        const [city, flag] = CALENDAR[ci];
+        const r = s.results[i];
+        let res = '';
+        if (r) { const me = r.cls.find((e) => e.id === 'me'); res = me.jump ? '<span class="tag-jump">JUMP START</span>' : `<span class="${posClass(me.pos)}">${ord(me.pos)}</span> · <span class="num">${fmt(me.t)}</span>`; }
+        else res = `<span style="color:var(--muted);font-weight:600">${i === s.round ? 'Next race' : 'Upcoming'}</span>`;
+        return `<div class="cal-item ${i === s.round ? 'next' : ''}"><div class="rd">ROUND ${i + 1}</div><div>${flag} ${esc(city)}</div><div class="res">${res}</div></div>`;
+      }).join('')}</div>`;
+    } else {
+      const mine = s.results.map((r) => r.cls.find((e) => e.id === 'me'));
+      const valid = mine.filter((m) => !m.jump).map((m) => m.t);
+      const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+      const best = valid.length ? Math.min(...valid) : null;
+      const max = Math.max(0.35, ...valid);
+      body.innerHTML = `
+        <div class="stat-strip" style="margin-top:0">
+          <div class="stat"><small>Season best</small><b class="num">${fmt(best)}</b></div>
+          <div class="stat"><small>Average</small><b class="num">${fmt(avg)}</b></div>
+          <div class="stat"><small>Jump starts</small><b class="num">${mine.length - valid.length}</b></div>
+        </div>
+        <div class="card" style="margin-top:10px">
+          <div class="eyebrow" style="margin-bottom:10px">Reaction by round (shorter is better)</div>
+          ${mine.length ? `<div class="spark">${mine.map((m) => m.jump ? '<i class="jump" style="height:100%" title="Jump start"></i>' : `<i style="height:${Math.max(4, (m.t / max) * 100)}%" title="${fmt(m.t)}"></i>`).join('')}</div>` : '<p class="hint">No starts yet.</p>'}
+          <p class="hint" style="margin-bottom:0">All-time personal best: <b class="num">${fmt(store.career.pb)}</b></p>
+        </div>`;
+    }
+    show('standings');
+  }
+  $('#sd-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; sdTab = b.dataset.t; renderStandings(); });
+
+  // ---------- Season end ----------
+  function renderFinal() {
+    const s = S();
+    const tb = sortedStandings();
+    const myPos = tb.findIndex((r) => r.d.me) + 1;
+    const champ = tb[0].d;
+    const mine = s.results.map((r) => r.cls.find((e) => e.id === 'me'));
+    const valid = mine.filter((m) => !m.jump).map((m) => m.t);
+    if (!s.closed) {
+      s.closed = true;
+      store.career.seasons++;
+      if (myPos === 1) store.career.titles++;
+      save();
+    }
+    $('#fn-trophy').textContent = myPos === 1 ? '🏆' : myPos <= 3 ? '🥇🥈🥉'.slice((myPos - 1) * 2, myPos * 2) : '🏁';
+    $('#fn-head').textContent = myPos === 1 ? 'World Champion!' : `You finished ${ord(myPos)}`;
+    $('#fn-sub').textContent = myPos === 1
+      ? `${tb[0].st.pts} points, ${tb[0].st.wins} wins. Nobody got off the line like you.`
+      : `${champ.name} (${teamOf(champ.team).name}) took the title with ${tb[0].st.pts} points. You scored ${tb[myPos - 1].st.pts}.`;
+    $('#fn-wins').textContent = s.standings.me.wins;
+    $('#fn-avg').textContent = valid.length ? fmt(valid.reduce((a, b) => a + b, 0) / valid.length) : '—';
+    $('#fn-jumps').textContent = mine.length - valid.length;
+    const top = tb.slice(0, 5); if (myPos > 5) top.push(tb[myPos - 1]);
+    $('#fn-table').innerHTML = top.map((r) => { const p = tb.indexOf(r) + 1; return `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(p)}">${p}</td><td>${driverCell(r.d)}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`; }).join('');
+    show('final');
+  }
+
+  // ---------- Wiring ----------
+  $('#brand').onclick = () => { clearTimers(); renderHome(); };
+  $('#btn-continue').onclick = () => { const s = S(); if (s.round >= s.rounds.length) renderFinal(); else renderPrerace(); };
+  $('#btn-new').onclick = () => {
+    if (store.season && !store.season.closed && store.season.round > 0 && !confirm('Abandon your current season and start a new one?')) return;
+    renderSetup();
+  };
+  $('#btn-practice').onclick = () => { practiceLog = []; openStart('practice'); };
+  $('#btn-setup-back').onclick = renderHome;
+  $('#btn-setup-go').onclick = startSeason;
+  $('#btn-to-grid').onclick = () => openStart('race');
+  $('#btn-rs-next').onclick = () => { const s = S(); if (s.round >= s.rounds.length) renderFinal(); else renderPrerace(); };
+  $('#btn-rs-standings').onclick = () => renderStandings('result');
+  $('#btn-standings').onclick = () => renderStandings(current);
+  $('#btn-sd-back').onclick = () => {
+    if (sdReturn === 'result') renderResult();
+    else if (sdReturn === 'final') renderFinal();
+    else if (S().round >= S().rounds.length) renderFinal();
+    else renderPrerace();
+  };
+  $('#btn-fn-home').onclick = () => { store.season = null; save(); renderHome(); };
+  $('#btn-fn-new').onclick = () => { store.season = null; save(); renderSetup(); };
+
+  function syncSound() { $('#btn-sound').textContent = store.sound ? '🔊' : '🔇'; }
+  $('#btn-sound').onclick = () => { store.sound = !store.sound; save(); syncSound(); };
+  syncSound();
+
+  renderHome();
+})();
+</script>
+</body>
+</html>
