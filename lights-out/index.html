@@ -170,6 +170,47 @@
   .spark { display: flex; align-items: flex-end; gap: 3px; height: 60px; }
   .spark i { flex: 1; background: var(--red); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .85; }
   .spark i.jump { background: #555; }
+  /* Aborted start: the amber lamps flash */
+  .gantry.abort .lamp.dim { animation: amber .5s steps(1) infinite; }
+  @keyframes amber {
+    0% { background: radial-gradient(circle at 35% 30%, #ffe6a8, #ffb000 45%, #a86b00 100%); box-shadow: 0 0 20px rgba(255,176,0,.6); }
+    50% { background: radial-gradient(circle at 35% 30%, #1a1d22, #101216 60%); box-shadow: none; }
+  }
+  .amber { color: #ffb000; }
+
+  /* Calibration */
+  .cal-pad { height: min(46vh, 360px); border-radius: 18px; background: var(--panel); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; position: relative; }
+  .cal-dot { width: 120px; height: 120px; border-radius: 50%; background: var(--panel-2); border: 2px solid var(--line); transition: background .12s ease-out, box-shadow .12s ease-out; }
+  .cal-dot.flash { background: #fff; box-shadow: 0 0 40px rgba(255,255,255,.6); transition: none; }
+  .cal-count { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .home-note { margin-top: 12px; font-size: 13px; color: var(--muted); text-align: center; }
+  .home-note button { background: none; border: 0; color: var(--text); text-decoration: underline; cursor: pointer; padding: 0; font-size: 13px; }
+
+  /* Duel (two players, one device) */
+  #duel { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: none; flex-direction: column; user-select: none; -webkit-user-select: none; touch-action: none; }
+  #duel.active { display: flex; }
+  .duel-half { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; cursor: pointer; transition: background .2s; text-align: center; }
+  .duel-half.p1 { --pc: #ff2a1f; }
+  .duel-half.p2 { --pc: #3b82f6; }
+  @media (pointer: coarse) { .duel-half.p2 { transform: rotate(180deg); } }
+  .duel-half.ready { background: color-mix(in srgb, var(--pc) 10%, transparent); }
+  .duel-half.win { background: rgba(34,197,94,.14); }
+  .duel-half.lose { background: rgba(255,255,255,.02); }
+  .duel-who { color: var(--pc); font-weight: 800; letter-spacing: .16em; text-transform: uppercase; font-size: 13px; }
+  .duel-pips { display: flex; gap: 6px; }
+  .duel-pips i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--pc); display: block; }
+  .duel-pips i.on { background: var(--pc); }
+  .duel-main { font-size: clamp(30px, 10vw, 64px); font-weight: 900; font-style: italic; letter-spacing: -.02em; line-height: 1.05; }
+  .duel-sub { color: var(--muted); font-size: 14px; font-weight: 600; min-height: 1.3em; }
+  .duel-key { color: var(--muted); font-size: 11px; letter-spacing: .1em; }
+  @media (pointer: coarse) { .duel-key { display: none; } }
+  .duel-mid { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 12px; border-block: 1px solid var(--line); background: #08090b; flex-wrap: wrap; }
+  .duel-mid .gantry { padding: 8px; }
+  .duel-mid .gantry::before { display: none; }
+  .duel-mid .gantry .lamp { width: clamp(18px, 6vw, 34px); }
+  .duel-side { display: flex; flex-direction: column; gap: 6px; }
+  .duel-side .icon-btn { font-size: 12px; }
+
   footer.foot { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0 20px; border-top: 1px solid var(--line); }
 </style>
 </head>
@@ -196,7 +237,9 @@
         <button class="btn primary block" id="btn-continue" hidden>Continue season</button>
         <button class="btn block" id="btn-new">New season</button>
         <button class="btn block" id="btn-practice">Practice starts</button>
+        <button class="btn block" id="btn-duel">Head-to-head · 2 players</button>
       </div>
+      <div class="home-note" id="home-cal-note"></div>
       <div class="stat-strip">
         <div class="stat"><small>Personal best</small><b class="num" id="st-pb">—</b></div>
         <div class="stat"><small>Titles</small><b class="num" id="st-titles">0</b></div>
@@ -321,6 +364,24 @@
       </div>
     </section>
 
+    <!-- CALIBRATION -->
+    <section class="screen" id="screen-calibrate">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">Fair timing</div>
+          <h2 style="font-size:28px;margin-top:4px">Calibrate your device</h2>
+          <p class="lede" style="margin-bottom:0">Every screen and touch panel adds a little lag. Tap the pad in time with the flashing light. Try to land exactly on each flash, not react to it. The lag we measure is taken off all your times.</p>
+        </div>
+        <div class="cal-pad" id="cal-pad"><div class="cal-dot" id="cal-dot"></div><div class="cal-count" id="cal-count"></div></div>
+        <div class="card center" id="cal-result"></div>
+        <div class="row">
+          <button class="btn" id="btn-cal-back">Done</button>
+          <button class="btn primary grow" id="btn-cal-start">Start calibration</button>
+        </div>
+        <button class="btn block" id="btn-cal-reset" style="font-size:13px;padding:10px">Reset to no correction</button>
+      </div>
+    </section>
+
     <!-- SEASON END -->
     <section class="screen" id="screen-final">
       <div class="stack">
@@ -346,6 +407,31 @@
     </section>
   </main>
   <footer class="foot">Lights Out · drivers and teams are fictional · tap, click or press Space</footer>
+</div>
+
+<!-- DUEL OVERLAY -->
+<div id="duel" aria-label="Head-to-head">
+  <div class="duel-half p2" data-p="1">
+    <div class="duel-who">Player 2</div>
+    <div class="duel-pips"></div>
+    <div class="duel-main num"></div>
+    <div class="duel-sub"></div>
+    <div class="duel-key">KEY: L</div>
+  </div>
+  <div class="duel-mid">
+    <div class="gantry small" id="duel-gantry"></div>
+    <div class="duel-side">
+      <span class="eyebrow" id="duel-round"></span>
+      <button class="icon-btn" id="btn-duel-exit">Exit</button>
+    </div>
+  </div>
+  <div class="duel-half p1" data-p="0">
+    <div class="duel-who">Player 1</div>
+    <div class="duel-pips"></div>
+    <div class="duel-main num"></div>
+    <div class="duel-sub"></div>
+    <div class="duel-key">KEY: A</div>
+  </div>
 </div>
 
 <script>
@@ -408,9 +494,9 @@
 
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   const DIFF = {
-    rookie: { offset: +0.050, label: 'Rivals react around 0.25–0.29 s. Good for getting a feel.' },
-    pro:    { offset:  0.000, label: 'Rivals react around 0.20–0.24 s, close to real elite starters.' },
-    legend: { offset: -0.025, label: 'Rivals react around 0.17–0.21 s. You need to be perfect.' },
+    rookie: { offset: +0.050, fake: 0.04, label: 'Rivals react around 0.25–0.29 s. Good for getting a feel.' },
+    pro:    { offset:  0.000, fake: 0.08, label: 'Rivals react around 0.20–0.24 s, close to real elite starters.' },
+    legend: { offset: -0.025, fake: 0.12, label: 'Rivals react around 0.17–0.21 s. You need to be perfect.' },
   };
   const MIN_HUMAN = 0.100; // anything faster is anticipation → jump start
 
@@ -418,6 +504,8 @@
   const KEY = 'lightsout.v1';
   const defaults = () => ({
     sound: true,
+    latency: 0,        // measured device lag in ms, subtracted from every reaction
+    calibrated: false,
     profile: { name: '', code: '', team: 'vortex', diff: 'pro', len: 24 },
     career: { pb: null, titles: 0, wins: 0, seasons: 0 },
     season: null,
@@ -495,6 +583,10 @@
     $('#st-pb').textContent = fmt(store.career.pb);
     $('#st-titles').textContent = store.career.titles;
     $('#st-wins').textContent = store.career.wins;
+    $('#home-cal-note').innerHTML = store.calibrated
+      ? `Device lag correction: <b class="num">${store.latency} ms</b> · <button id="lnk-cal">Recalibrate</button>`
+      : `Times include your device's lag. <button id="lnk-cal">Calibrate for fair times</button>`;
+    $('#lnk-cal').onclick = openCalibrate;
     show('home');
   }
 
@@ -609,8 +701,43 @@
   let tOut = 0;
   let practiceLog = [];
 
-  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
-  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  // Shared start procedure used by race, practice and duel.
+  // Fake-outs: sometimes the start is aborted (amber lamps flash, then the sequence restarts),
+  // sometimes the lights are held for an unusually long time.
+  function runSequence({ pods, gantry, fakeRate, onLight, onAbort, onResume, onOut }) {
+    const ts = [];
+    const at = (fn, ms) => ts.push(setTimeout(fn, ms));
+    let raf = 0;
+    function seq(pre, allowAbort) {
+      const abortAfter = allowAbort && Math.random() < fakeRate ? 2 + Math.floor(Math.random() * 4) : 0; // abort after 2–5 lights
+      for (let i = 1; i <= 5; i++) {
+        if (abortAfter && i > abortAfter) break;
+        at(() => { setLights(pods, i); onLight && onLight(i); }, pre + (i - 1) * 1000);
+      }
+      if (abortAfter) {
+        const tA = pre + (abortAfter - 1) * 1000 + 500 + Math.random() * 900;
+        at(() => { setLights(pods, 0); gantry.classList.add('abort'); onAbort && onAbort(); beep(300, 0.25, 0.15); }, tA);
+        at(() => { gantry.classList.remove('abort'); onResume && onResume(); seq(1500 + Math.random() * 800, false); }, tA + 2800);
+        return;
+      }
+      // Hold after the 5th light: usually 0.2–3.0 s weighted to the middle; sometimes a long 3.0–4.5 s hold
+      const hold = Math.random() < fakeRate
+        ? 3000 + Math.random() * 1500
+        : 200 + (Math.random() * 0.6 + Math.random() * 0.4) * 2800;
+      at(() => { raf = requestAnimationFrame(() => { setLights(pods, 0); onOut(performance.now()); }); }, pre + 4000 + hold);
+    }
+    seq(900 + Math.random() * 900, true);
+    return { cancel() { ts.forEach(clearTimeout); cancelAnimationFrame(raf); gantry.classList.remove('abort'); } };
+  }
+
+  // Reaction time in seconds from an input event, with the calibrated device lag removed
+  function reactionFrom(e, tOutAt) {
+    const now = (e && e.timeStamp && e.timeStamp > tOutAt - 50 && e.timeStamp < tOutAt + 10000) ? e.timeStamp : performance.now();
+    return (now - tOutAt - (store.latency || 0)) / 1000;
+  }
+
+  let seqCtl = null;
+  function clearTimers() { if (seqCtl) { seqCtl.cancel(); seqCtl = null; } }
 
   function openStart(m) {
     mode = m;
@@ -639,20 +766,13 @@
     phase = 'armed';
     msg('Hold…', 'Lights coming on');
     $('#ss-after').innerHTML = '';
-    const pre = 900 + Math.random() * 900;
-    for (let i = 1; i <= 5; i++) {
-      later(() => { phase = 'lighting'; setLights(racePods, i); beep(560 + i * 20, 0.09, 0.12); if (i === 5) msg('&nbsp;', ''); }, pre + (i - 1) * 1000);
-    }
-    // Random hold after the 5th light: 0.2 – 3.0 s, weighted toward the middle
-    const hold = 200 + (Math.random() * 0.6 + Math.random() * 0.4) * 2800;
-    later(lightsOut, pre + 4000 + hold);
-  }
-
-  function lightsOut() {
-    requestAnimationFrame(() => {
-      setLights(racePods, 0);
-      tOut = performance.now();
-      phase = 'out';
+    const fakeRate = mode === 'race' ? DIFF[S().diff].fake : DIFF[store.profile.diff || 'pro'].fake;
+    seqCtl = runSequence({
+      pods: racePods, gantry: $('#race-gantry'), fakeRate,
+      onLight: (i) => { phase = 'lighting'; beep(560 + i * 20, 0.09, 0.12); if (i === 1) msg('&nbsp;', ''); },
+      onAbort: () => { phase = 'abort'; msg('<span class="amber">START ABORTED</span>', 'Don\'t move. The procedure will restart.'); },
+      onResume: () => { phase = 'armed'; msg('Hold…', 'Restarting the procedure'); },
+      onOut: (t) => { tOut = t; phase = 'out'; },
     });
   }
 
@@ -661,15 +781,21 @@
     unlockAudio();
     if (phase === 'idle') { arm(); return; }
     if (phase === 'done') { if (mode === 'practice') openStart('practice'); return; }
-    if (phase === 'armed' || phase === 'lighting') { finish(null, true); return; }
+    if (phase === 'armed' || phase === 'lighting') { finish(null, true, 'early'); return; }
+    if (phase === 'abort') { finish(null, true, 'abort'); return; }
     if (phase === 'out') {
-      const now = (e && e.timeStamp && e.timeStamp > tOut - 50 && e.timeStamp < tOut + 10000) ? e.timeStamp : performance.now();
-      const t = (now - tOut) / 1000;
-      finish(t, t < MIN_HUMAN);
+      const t = reactionFrom(e, tOut);
+      finish(t, t < MIN_HUMAN, 'anticipation');
     }
   }
 
-  function finish(t, jump) {
+  const JUMP_WHY = {
+    early: 'You moved before the lights went out',
+    abort: 'You moved during an aborted start',
+  };
+  function jumpWhy(reason, t) { return reason === 'anticipation' ? `${fmt(Math.max(0, t))} s is anticipation, not a reaction` : JUMP_WHY[reason]; }
+
+  function finish(t, jump, reason) {
     clearTimers();
     phase = 'done';
     if (jump) {
@@ -687,7 +813,7 @@
       const valid = practiceLog.filter((x) => x != null);
       const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
       const sub = jump
-        ? (t != null ? `${fmt(t)} s is anticipation, not reaction` : 'You moved before the lights went out')
+        ? jumpWhy(reason, t)
         : `${isPb ? '🏅 New personal best · ' : ''}Session avg ${fmt(avg)} · ${valid.length} start${valid.length === 1 ? '' : 's'}`;
       msg(shown, sub, jump ? 'bad' : (t < 0.22 ? 'good' : ''));
       $('#ss-after').innerHTML = '';
@@ -700,7 +826,7 @@
     // Race mode: simulate the field
     const res = runRace(jump ? null : t, jump);
     const me = res.find((r) => r.id === 'me');
-    const sub = jump ? (t != null ? `${fmt(t)} s — too quick to be a reaction` : 'You moved before the lights went out') : `${isPb ? '🏅 New personal best · ' : ''}You ${me.pos === 1 ? 'won the start!' : 'finished ' + ord(me.pos)}`;
+    const sub = jump ? jumpWhy(reason, t) : `${isPb ? '🏅 New personal best · ' : ''}You ${me.pos === 1 ? 'won the start!' : 'finished ' + ord(me.pos)}`;
     msg(shown, sub, jump ? 'bad' : (me.pos <= 3 ? 'good' : ''));
     $('#ss-after').innerHTML = '';
     const go = el('button', 'btn primary', 'Race classification →'); go.onclick = (ev) => { ev.stopPropagation(); renderResult(); };
@@ -749,7 +875,7 @@
   });
   document.addEventListener('visibilitychange', () => {
     // Don't let a hidden tab ruin a start: reset if the sequence was running
-    if (document.hidden && current === 'start' && (phase === 'armed' || phase === 'lighting' || phase === 'out')) {
+    if (document.hidden && current === 'start' && ['armed', 'lighting', 'abort', 'out'].includes(phase)) {
       clearTimers(); phase = 'idle'; setLights(racePods, 0);
       msg('Start aborted', 'Tap anywhere or press Space to restart the procedure');
     }
@@ -859,6 +985,180 @@
     show('final');
   }
 
+  // ---------- Calibration ----------
+  // Tap in time with a flashing light. Because the player anticipates the rhythm, their taps land
+  // on the beat as they perceive it; the remaining offset is screen + input lag.
+  const CAL_INTERVAL = 700, CAL_WARMUP = 3, CAL_BEATS = 12;
+  const cal = { running: false, beats: [], taps: [], next: 0, raf: 0 };
+  function renderCalResult(text) {
+    $('#cal-result').innerHTML = text || (store.calibrated
+      ? `Current correction: <b class="num">${store.latency} ms</b> taken off every reaction`
+      : 'Not calibrated yet. Times include your device\'s lag.');
+  }
+  function openCalibrate() {
+    calStop();
+    $('#cal-count').textContent = 'Press Start, then tap along with the flash';
+    $('#btn-cal-start').textContent = store.calibrated ? 'Recalibrate' : 'Start calibration';
+    renderCalResult();
+    show('calibrate');
+  }
+  function calStop() { cal.running = false; cancelAnimationFrame(cal.raf); $('#cal-dot').classList.remove('flash'); }
+  function calStart() {
+    calStop();
+    Object.assign(cal, { running: true, beats: [], taps: [], next: performance.now() + 1000 });
+    $('#btn-cal-start').disabled = true;
+    renderCalResult('Tap on every flash. The first few are warm-up.');
+    const dot = $('#cal-dot');
+    const loop = () => {
+      if (!cal.running) return;
+      const now = performance.now();
+      if (now >= cal.next) {
+        dot.classList.add('flash');
+        setTimeout(() => dot.classList.remove('flash'), 90);
+        cal.beats.push(now);
+        cal.next += CAL_INTERVAL;
+        const n = cal.beats.length;
+        $('#cal-count').textContent = n <= CAL_WARMUP ? `Warm-up ${n} / ${CAL_WARMUP}` : `Beat ${n - CAL_WARMUP} / ${CAL_BEATS}`;
+        if (n >= CAL_WARMUP + CAL_BEATS) { setTimeout(calFinish, CAL_INTERVAL / 2); return; }
+      }
+      cal.raf = requestAnimationFrame(loop);
+    };
+    cal.raf = requestAnimationFrame(loop);
+  }
+  function calFinish() {
+    calStop();
+    $('#btn-cal-start').disabled = false;
+    $('#btn-cal-start').textContent = 'Try again';
+    const offsets = [];
+    cal.taps.forEach((tap) => {
+      let best = null;
+      cal.beats.forEach((b, i) => { if (i >= CAL_WARMUP && (best == null || Math.abs(tap - b) < Math.abs(best))) best = tap - b; });
+      if (best != null && Math.abs(best) < CAL_INTERVAL * 0.4) offsets.push(best);
+    });
+    if (offsets.length < 6) { $('#cal-count').textContent = 'Not enough taps'; renderCalResult('Only ' + offsets.length + ' taps matched a flash. Try again and tap on every flash.'); return; }
+    offsets.sort((a, b) => a - b);
+    const median = offsets[Math.floor(offsets.length / 2)];
+    const spread = offsets.map((o) => Math.abs(o - median)).sort((a, b) => a - b)[Math.floor(offsets.length / 2)];
+    if (spread > 60) { $('#cal-count').textContent = 'Taps too uneven'; renderCalResult(`Your taps were spread out (±${Math.round(spread)} ms). Try again and keep a steady rhythm.`); return; }
+    store.latency = Math.round(Math.min(150, Math.max(0, median)));
+    store.calibrated = true;
+    save();
+    $('#cal-count').textContent = 'Done';
+    renderCalResult(`Measured lag <b class="num">${store.latency} ms</b> (steadiness ±${Math.round(spread)} ms). This is now taken off every reaction.`);
+  }
+  $('#cal-pad').addEventListener('pointerdown', (e) => { e.preventDefault(); if (cal.running) cal.taps.push(e.timeStamp || performance.now()); });
+  $('#btn-cal-start').onclick = calStart;
+  $('#btn-cal-back').onclick = () => { calStop(); $('#btn-cal-start').disabled = false; renderHome(); };
+  $('#btn-cal-reset').onclick = () => { calStop(); $('#btn-cal-start').disabled = false; store.latency = 0; store.calibrated = false; save(); openCalibrate(); };
+
+  // ---------- Duel: two players, one device ----------
+  const DUEL_TARGET = 3; // first to 3 round wins (best of 5)
+  const duelEl = $('#duel');
+  const duelHalves = [duelEl.querySelector('.p1'), duelEl.querySelector('.p2')];
+  const duelPods = buildGantry($('#duel-gantry'), true);
+  const duel = { score: [0, 0], round: 0, phase: 'idle', ready: [false, false], times: [null, null], tOut: 0, ctl: null, endTimer: 0, lockUntil: 0 };
+
+  function duelSet(p, main, sub, cls) {
+    const h = duelHalves[p];
+    h.querySelector('.duel-main').innerHTML = main;
+    h.querySelector('.duel-sub').innerHTML = sub || '';
+    h.classList.remove('ready', 'win', 'lose');
+    if (cls) h.classList.add(cls);
+    h.querySelector('.duel-pips').innerHTML = Array.from({ length: DUEL_TARGET }, (_, i) => `<i class="${i < duel.score[p] ? 'on' : ''}"></i>`).join('');
+  }
+  function duelCancel() { if (duel.ctl) duel.ctl.cancel(); duel.ctl = null; clearTimeout(duel.endTimer); setLights(duelPods, 0); }
+  function openDuel() {
+    duelCancel();
+    duel.score = [0, 0]; duel.round = 0;
+    stopHomeAnim();
+    current = 'duel';
+    duelEl.classList.add('active');
+    duelNewRound();
+  }
+  function closeDuel() { duelCancel(); duelEl.classList.remove('active'); renderHome(); }
+  function duelNewRound() {
+    duelCancel();
+    duel.round++;
+    duel.phase = 'idle'; duel.ready = [false, false]; duel.times = [null, null];
+    $('#duel-round').textContent = `Round ${duel.round}`;
+    [0, 1].forEach((p) => duelSet(p, 'Tap to get ready', 'Put a finger near your side'));
+  }
+  function duelTap(p, e) {
+    unlockAudio();
+    const ph = duel.phase;
+    if (ph === 'idle') {
+      if (duel.ready[p]) return;
+      duel.ready[p] = true;
+      duelSet(p, 'Ready', duel.ready[1 - p] ? '' : 'Waiting for your opponent', 'ready');
+      if (duel.ready[0] && duel.ready[1]) duelArm();
+      return;
+    }
+    if (ph === 'armed' || ph === 'lighting') return duelEnd(1 - p, { jumper: p, why: 'Moved before lights out' });
+    if (ph === 'abort') return duelEnd(1 - p, { jumper: p, why: 'Moved during an aborted start' });
+    if (ph === 'out') {
+      if (duel.times[p] != null) return;
+      const t = reactionFrom(e, duel.tOut);
+      if (t < MIN_HUMAN) return duelEnd(1 - p, { jumper: p, why: `${fmt(Math.max(0, t))} s is anticipation` });
+      duel.times[p] = t;
+      duelSet(p, fmt(t), duel.times[1 - p] == null ? 'Waiting…' : '');
+      if (duel.times[1 - p] != null) duelEnd();
+      else duel.endTimer = setTimeout(() => duelEnd(), 1200); // don't wait forever for the slower player
+      return;
+    }
+    if (ph === 'over' && performance.now() > duel.lockUntil) {
+      if (duel.score[0] >= DUEL_TARGET || duel.score[1] >= DUEL_TARGET) { duel.score = [0, 0]; duel.round = 0; }
+      duelNewRound();
+    }
+  }
+  function duelArm() {
+    duel.phase = 'armed';
+    [0, 1].forEach((p) => duelSet(p, 'Hold…', 'Lights coming on', 'ready'));
+    duel.ctl = runSequence({
+      pods: duelPods, gantry: $('#duel-gantry'), fakeRate: 0.1,
+      onLight: (i) => { duel.phase = 'lighting'; beep(560 + i * 20, 0.09, 0.12); if (i === 1) [0, 1].forEach((p) => duelSet(p, '&nbsp;', '')); },
+      onAbort: () => { duel.phase = 'abort'; [0, 1].forEach((p) => duelSet(p, '<span class="amber">ABORTED</span>', 'Don\'t move!')); },
+      onResume: () => { duel.phase = 'armed'; [0, 1].forEach((p) => duelSet(p, 'Hold…', 'Restarting')); },
+      onOut: (t) => { duel.tOut = t; duel.phase = 'out'; },
+    });
+  }
+  function duelEnd(winner, jump) {
+    duelCancel();
+    duel.phase = 'over';
+    duel.lockUntil = performance.now() + 900; // ignore panic taps right after the round
+    if (winner == null) {
+      const [a, b] = duel.times;
+      winner = b == null || (a != null && a <= b) ? 0 : 1;
+    }
+    duel.score[winner]++;
+    const loser = 1 - winner;
+    const matchOver = duel.score[winner] >= DUEL_TARGET;
+    const next = matchOver ? 'Tap for a rematch' : 'Tap for next round';
+    if (jump) {
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+      beep(180, 0.35, 0.2);
+      duelSet(loser, '<span style="color:var(--red)">JUMP START</span>', `${jump.why} · ${next}`, 'lose');
+      duelSet(winner, matchOver ? '🏆 You win!' : 'Round won', `Opponent jumped · ${next}`, 'win');
+    } else {
+      const tw = duel.times[winner], tl = duel.times[loser];
+      duelSet(winner, `${matchOver ? '🏆 ' : ''}${fmt(tw)}`, `${matchOver ? 'Match won' : 'Round won'}${tl != null ? ' by ' + fmt(tl - tw) + ' s' : ''} · ${next}`, 'win');
+      duelSet(loser, tl != null ? fmt(tl) : 'Too slow', `${matchOver ? 'Match lost' : 'Round lost'} · ${next}`, 'lose');
+    }
+    $('#duel-round').textContent = matchOver ? `Player ${winner + 1} wins ${duel.score[winner]}–${duel.score[loser]}` : `Round ${duel.round} · ${duel.score[0]}–${duel.score[1]}`;
+  }
+  duelHalves.forEach((h) => h.addEventListener('pointerdown', (e) => { e.preventDefault(); duelTap(+h.dataset.p, e); }));
+  duelEl.addEventListener('contextmenu', (e) => e.preventDefault());
+  $('#btn-duel-exit').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('#btn-duel-exit').onclick = closeDuel;
+  document.addEventListener('keydown', (e) => {
+    if (current !== 'duel' || e.repeat) return;
+    if (e.code === 'KeyA') { e.preventDefault(); duelTap(0, e); }
+    else if (e.code === 'KeyL') { e.preventDefault(); duelTap(1, e); }
+    else if (e.code === 'Escape') closeDuel();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && current === 'duel' && ['armed', 'lighting', 'abort', 'out'].includes(duel.phase)) { duel.round--; duelNewRound(); }
+  });
+
   // ---------- Wiring ----------
   $('#brand').onclick = () => { clearTimers(); renderHome(); };
   $('#btn-continue').onclick = () => { const s = S(); if (s.round >= s.rounds.length) renderFinal(); else renderPrerace(); };
@@ -866,6 +1166,7 @@
     if (store.season && !store.season.closed && store.season.round > 0 && !confirm('Abandon your current season and start a new one?')) return;
     renderSetup();
   };
+  $('#btn-duel').onclick = openDuel;
   $('#btn-practice').onclick = () => { practiceLog = []; openStart('practice'); };
   $('#btn-setup-back').onclick = renderHome;
   $('#btn-setup-go').onclick = startSeason;
