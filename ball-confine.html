@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ball Confine — Dots and Lines</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f9f6e5;
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --accent: #16a34a;
+    --line: #3b82f6;
+    --dot: #374151;
+    --board: #fffdf4;
+    --claimed: #d9e6d2;
+    --live: #ffffff;
+    --bad: #ef4444;
+    --card: #ffffff;
+    --border: #e5e0c8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171717; --fg: #e5e7eb; --muted: #9ca3af; --accent: #22c55e;
+      --line: #60a5fa; --dot: #d1d5db; --board: #1f1f1f; --claimed: #23332a;
+      --live: #262626; --card: #222222; --border: #333333;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--fg);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 16px; gap: 12px; -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+  header { text-align: center; }
+  h1 { margin: 0; font-size: 1.6rem; color: var(--accent); }
+  .tag { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+  .stats {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    width: 100%; max-width: 560px;
+  }
+  .stat {
+    flex: 1 1 0; min-width: 70px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px 8px; text-align: center;
+  }
+  .stat b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .wrap { position: relative; width: 100%; max-width: 560px; }
+  canvas { display: block; width: 100%; touch-action: none; border-radius: 14px; cursor: crosshair; }
+  .overlay {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg) 70%, transparent); border-radius: 14px;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px; text-align: center; max-width: 86%; box-shadow: 0 8px 30px rgba(0,0,0,.15);
+  }
+  .panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+  .panel p { margin: 0 0 14px; color: var(--muted); line-height: 1.5; }
+  .btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 9px 16px;
+    background: var(--line); color: #fff; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+  button:disabled { opacity: .4; cursor: default; }
+  .controls { display: flex; gap: 8px; }
+  .help { max-width: 560px; color: var(--muted); font-size: 0.88rem; line-height: 1.55; text-align: center; margin: 0; }
+  a { color: var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ball Confine</h1>
+  <p class="tag">Trap every ball in a single cell</p>
+</header>
+
+<div class="stats">
+  <div class="stat"><b id="sLevel">1</b><span>Level</span></div>
+  <div class="stat"><b id="sBalls">2</b><span>Balls</span></div>
+  <div class="stat"><b id="sArea">16</b><span>Area</span></div>
+  <div class="stat"><b id="sLines">0</b><span>Lines</span></div>
+  <div class="stat"><b id="sUndo">3</b><span>Undos</span></div>
+</div>
+
+<div class="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h2 id="oTitle"></h2>
+      <p id="oText"></p>
+      <div class="btns" id="oBtns"></div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="secondary" id="bUndo">Undo</button>
+  <button class="secondary" id="bRestart">Restart level</button>
+</div>
+
+<p class="help">Tap between two neighbouring dots to draw a wall. Balls bounce off walls.
+Areas with no balls get filled in. Close the walls in until <b>all balls share one cell</b>.
+But don't cut the balls apart: if your walls split them into separate areas, you lose the level.</p>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  const BALL_COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+  const R = 0.17;          // ball radius in cell units
+  const MAX_UNDO = 3;
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  let level = Math.max(1, parseInt(store.get('ballConfine.level') || '1', 10) || 1);
+  let S; // game state
+  let hover = null;
+  let cssSize = 0, cell = 0, pad = 0;
+
+  function config(n) {
+    const size = Math.min(4 + Math.floor((n - 1) / 2), 8);
+    return {
+      cols: size, rows: size,
+      balls: Math.min(2 + Math.floor((n - 1) / 3), 5),
+      speed: Math.min(1.1 + 0.12 * (n - 1), 2.6) // cells per second
+    };
+  }
+
+  function newLevel() {
+    const cfg = config(level);
+    const { cols, rows } = cfg;
+    // H[r][c]: horizontal wall from dot(r,c) to dot(r,c+1), r in 0..rows
+    // V[r][c]: vertical wall from dot(r,c) to dot(r+1,c), c in 0..cols
+    const H = Array.from({ length: rows + 1 }, (_, r) => Array(cols).fill(r === 0 || r === rows));
+    const V = Array.from({ length: rows }, () => Array.from({ length: cols + 1 }, (_, c) => c === 0 || c === cols));
+    const balls = [];
+    for (let i = 0; i < cfg.balls; i++) {
+      const a = Math.random() * Math.PI * 2;
+      // keep angles away from pure horizontal/vertical
+      const ang = a + (Math.abs(Math.cos(a)) > 0.95 || Math.abs(Math.sin(a)) > 0.95 ? 0.5 : 0);
+      balls.push({
+        x: 0.5 + Math.random() * (cols - 1),
+        y: 0.5 + Math.random() * (rows - 1),
+        vx: Math.cos(ang) * cfg.speed * (0.85 + Math.random() * 0.3),
+        vy: Math.sin(ang) * cfg.speed * (0.85 + Math.random() * 0.3),
+        color: BALL_COLORS[i % BALL_COLORS.length]
+      });
+    }
+    S = {
+      cfg, cols, rows, H, V, balls,
+      history: [], lines: 0, undos: MAX_UNDO,
+      regionOf: null, claimed: null, liveSize: cols * rows,
+      status: 'play', // play | won | lost
+      flash: null, startTime: performance.now(), endTime: 0
+    };
+    analyse();
+    hideOverlay();
+    resize();
+    updateHud();
+  }
+
+  // ---------- regions ----------
+  function analyse() {
+    const { cols, rows, H, V } = S;
+    const region = Array.from({ length: rows }, () => Array(cols).fill(-1));
+    const sizes = [];
+    let id = 0;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (region[r][c] !== -1) continue;
+      const stack = [[r, c]]; region[r][c] = id; let n = 0;
+      while (stack.length) {
+        const [y, x] = stack.pop(); n++;
+        const nb = [];
+        if (!H[y][x] && y > 0) nb.push([y - 1, x]);
+        if (!H[y + 1][x] && y < rows - 1) nb.push([y + 1, x]);
+        if (!V[y][x] && x > 0) nb.push([y, x - 1]);
+        if (!V[y][x + 1] && x < cols - 1) nb.push([y, x + 1]);
+        for (const [ny, nx] of nb) if (region[ny][nx] === -1) { region[ny][nx] = id; stack.push([ny, nx]); }
+      }
+      sizes.push(n); id++;
+    }
+    const ballRegions = new Set();
+    for (const b of S.balls) ballRegions.add(region[cellY(b.y)][cellX(b.x)]);
+    S.regionOf = region;
+    S.ballRegions = ballRegions;
+    S.liveSize = [...ballRegions].reduce((a, k) => a + sizes[k], 0);
+    S.sizes = sizes;
+  }
+
+  const cellX = x => Math.min(S.cols - 1, Math.max(0, Math.floor(x)));
+  const cellY = y => Math.min(S.rows - 1, Math.max(0, Math.floor(y)));
+  const isClaimed = (r, c) => !S.ballRegions.has(S.regionOf[r][c]);
+
+  // ---------- input ----------
+  function segmentAt(px, py) {
+    const gx = (px - pad) / cell, gy = (py - pad) / cell;
+    const { cols, rows } = S;
+    let best = null;
+    const hr = Math.round(gy), hc = Math.floor(gx);
+    if (hr >= 0 && hr <= rows && hc >= 0 && hc < cols) {
+      best = { type: 'H', r: hr, c: hc, d: Math.abs(gy - hr) };
+    }
+    const vc = Math.round(gx), vr = Math.floor(gy);
+    if (vc >= 0 && vc <= cols && vr >= 0 && vr < rows) {
+      const d = Math.abs(gx - vc);
+      if (!best || d < best.d) best = { type: 'V', r: vr, c: vc, d };
+    }
+    if (!best || best.d > 0.38) return null;
+    if (!canDraw(best)) return null;
+    return best;
+  }
+
+  function canDraw(s) {
+    const { H, V } = S;
+    if (s.type === 'H') {
+      if (H[s.r][s.c]) return false;
+      // cells above (r-1,c) and below (r,c); useless if both already filled in
+      return !(isClaimed(s.r - 1, s.c) && isClaimed(s.r, s.c));
+    } else {
+      if (V[s.r][s.c]) return false;
+      return !(isClaimed(s.r, s.c - 1) && isClaimed(s.r, s.c));
+    }
+  }
+
+  function draw(s) {
+    if (S.status !== 'play') return;
+    (s.type === 'H' ? S.H : S.V)[s.r][s.c] = true;
+    S.history.push(s);
+    S.lines++;
+    analyse();
+    S.flash = { seg: s, t: performance.now() };
+    if (S.ballRegions.size > 1) {
+      S.status = 'lost';
+      S.endTime = performance.now();
+      setTimeout(() => {
+        if (S.status !== 'lost') return;
+        showOverlay('Balls separated!',
+          'Your last wall split the balls into different areas. They all have to end up in the same cell.',
+          [
+            S.undos > 0 ? { label: `Undo wall (${S.undos} left)`, fn: undo } : null,
+            { label: 'Retry level', fn: newLevel, secondary: S.undos > 0 }
+          ].filter(Boolean));
+      }, 450);
+    } else if (S.liveSize === 1) {
+      S.status = 'won';
+      S.endTime = performance.now();
+      const secs = Math.round((S.endTime - S.startTime) / 1000);
+      level++;
+      store.set('ballConfine.level', String(level));
+      setTimeout(() => showOverlay('Confined!',
+        `All ${S.balls.length} balls trapped in one cell using ${S.lines} lines in ${secs}s.`,
+        [{ label: 'Next level', fn: newLevel }]), 600);
+    }
+    updateHud();
+  }
+
+  function undo() {
+    if (!S.history.length || S.undos <= 0 || S.status === 'won') return;
+    const s = S.history.pop();
+    (s.type === 'H' ? S.H : S.V)[s.r][s.c] = false;
+    S.undos--;
+    S.lines--;
+    S.status = 'play';
+    analyse();
+    hideOverlay();
+    updateHud();
+  }
+
+  function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return [(e.clientX - rect.left) * (cssSize / rect.width), (e.clientY - rect.top) * (cssSize / rect.height)];
+  }
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    hover = S.status === 'play' ? segmentAt(...pointerPos(e)) : null;
+  });
+  canvas.addEventListener('pointerleave', () => { hover = null; });
+  canvas.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (S.status !== 'play') return;
+    const s = segmentAt(...pointerPos(e));
+    if (s) draw(s);
+    hover = null;
+  });
+  $('bUndo').addEventListener('click', undo);
+  $('bRestart').addEventListener('click', newLevel);
+  window.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.key === 'r' && !e.ctrlKey && !e.metaKey) newLevel();
+  });
+
+  // ---------- physics ----------
+  // Crossing test along one axis. Returns the grid line index crossed, or null.
+  function crossed(from, to) {
+    const a = Math.floor(from), b = Math.floor(to);
+    if (a === b) return null;
+    return to > from ? b : a;
+  }
+
+  function blockedX(b, nx) {
+    const { V, rows, cols } = S;
+    const s = Math.sign(b.vx) * R;
+    const rowsToCheck = [cellY(b.y)];
+    const k1 = crossed(b.x + s, nx + s);
+    if (k1 !== null && k1 >= 0 && k1 <= cols) {
+      const rs = new Set([cellY(b.y), cellY(b.y - R * 0.7), cellY(b.y + R * 0.7)]);
+      for (const r of rs) if (V[r][k1]) return true;
+    }
+    const k2 = crossed(b.x, nx); // hard guarantee: center never crosses a wall
+    if (k2 !== null && k2 >= 0 && k2 <= cols && V[rowsToCheck[0]][k2]) return true;
+    return nx < R * 0.5 || nx > cols - R * 0.5;
+  }
+
+  function blockedY(b, ny) {
+    const { H, rows } = S;
+    const s = Math.sign(b.vy) * R;
+    const k1 = crossed(b.y + s, ny + s);
+    if (k1 !== null && k1 >= 0 && k1 <= rows) {
+      const cs = new Set([cellX(b.x), cellX(b.x - R * 0.7), cellX(b.x + R * 0.7)]);
+      for (const c of cs) if (H[k1][c]) return true;
+    }
+    const k2 = crossed(b.y, ny);
+    if (k2 !== null && k2 >= 0 && k2 <= rows && H[k2][cellX(b.x)]) return true;
+    return ny < R * 0.5 || ny > rows - R * 0.5;
+  }
+
+  function step(dt) {
+    const speedMax = Math.hypot(S.cfg.speed, S.cfg.speed) * 1.2;
+    const n = Math.max(1, Math.ceil((speedMax * dt) / 0.05));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      for (const b of S.balls) {
+        const nx = b.x + b.vx * h;
+        if (blockedX(b, nx)) b.vx = -b.vx; else b.x = nx;
+        const ny = b.y + b.vy * h;
+        if (blockedY(b, ny)) b.vy = -b.vy; else b.y = ny;
+      }
+    }
+  }
+
+  // ---------- rendering ----------
+  function resize() {
+    const wrap = canvas.parentElement;
+    const maxH = window.innerHeight - 300;
+    cssSize = Math.max(260, Math.min(wrap.clientWidth, Math.max(300, maxH)));
+    canvas.style.width = cssSize + 'px';
+    canvas.style.height = cssSize + 'px';
+    canvas.style.margin = '0 auto';
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssSize * dpr);
+    canvas.height = Math.round(cssSize * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    pad = Math.max(18, cssSize * 0.05);
+    cell = (cssSize - pad * 2) / Math.max(S.cols, S.rows);
+  }
+  window.addEventListener('resize', resize);
+
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function render(now) {
+    const C = {
+      board: css('--board'), claimed: css('--claimed'), live: css('--live'),
+      line: css('--line'), dot: css('--dot'), bad: css('--bad'), accent: css('--accent')
+    };
+    const { cols, rows, H, V } = S;
+    ctx.clearRect(0, 0, cssSize, cssSize);
+    ctx.fillStyle = C.board;
+    roundRect(0, 0, cssSize, cssSize, 14); ctx.fill();
+
+    // cells
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = pad + c * cell, y = pad + r * cell;
+      if (isClaimed(r, c)) {
+        ctx.fillStyle = C.claimed;
+        ctx.fillRect(x, y, cell + 0.5, cell + 0.5);
+      } else {
+        ctx.fillStyle = S.status === 'won' ? hexA(C.accent, 0.18) : C.live;
+        ctx.fillRect(x, y, cell + 0.5, cell + 0.5);
+      }
+    }
+    // separated regions tint when lost
+    if (S.status === 'lost') {
+      const ids = [...S.ballRegions];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const idx = ids.indexOf(S.regionOf[r][c]);
+        if (idx >= 0) {
+          ctx.fillStyle = hexA(idx % 2 ? C.line : C.bad, 0.13);
+          ctx.fillRect(pad + c * cell, pad + r * cell, cell + 0.5, cell + 0.5);
+        }
+      }
+    }
+
+    // walls
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(3, cell * 0.08);
+    ctx.strokeStyle = C.line;
+    ctx.beginPath();
+    for (let r = 0; r <= rows; r++) for (let c = 0; c < cols; c++) if (H[r][c]) {
+      ctx.moveTo(pad + c * cell, pad + r * cell); ctx.lineTo(pad + (c + 1) * cell, pad + r * cell);
+    }
+    for (let r = 0; r < rows; r++) for (let c = 0; c <= cols; c++) if (V[r][c]) {
+      ctx.moveTo(pad + c * cell, pad + r * cell); ctx.lineTo(pad + c * cell, pad + (r + 1) * cell);
+    }
+    ctx.stroke();
+
+    // flash on newest wall
+    if (S.flash) {
+      const t = (now - S.flash.t) / 450;
+      if (t < 1) {
+        ctx.save();
+        ctx.strokeStyle = S.status === 'lost' ? C.bad : C.line;
+        ctx.globalAlpha = 1 - t;
+        ctx.lineWidth = Math.max(3, cell * 0.08) + cell * 0.25 * t;
+        segPath(S.flash.seg); ctx.stroke();
+        ctx.restore();
+      } else if (S.status === 'lost') {
+        ctx.save(); ctx.strokeStyle = C.bad; segPath(S.flash.seg); ctx.stroke(); ctx.restore();
+      }
+    }
+
+    // hover preview
+    if (hover && S.status === 'play') {
+      ctx.save();
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = C.line;
+      segPath(hover); ctx.stroke();
+      ctx.restore();
+    }
+
+    // dots
+    ctx.fillStyle = C.dot;
+    const dr = Math.max(3, cell * 0.075);
+    for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++) {
+      ctx.beginPath(); ctx.arc(pad + c * cell, pad + r * cell, dr, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // balls
+    for (const b of S.balls) {
+      const x = pad + b.x * cell, y = pad + b.y * cell, rad = R * cell;
+      const g = ctx.createRadialGradient(x - rad * 0.35, y - rad * 0.35, rad * 0.1, x, y, rad);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.25, b.color);
+      g.addColorStop(1, shade(b.color, -0.35));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function segPath(s) {
+    ctx.beginPath();
+    if (s.type === 'H') {
+      ctx.moveTo(pad + s.c * cell, pad + s.r * cell); ctx.lineTo(pad + (s.c + 1) * cell, pad + s.r * cell);
+    } else {
+      ctx.moveTo(pad + s.c * cell, pad + s.r * cell); ctx.lineTo(pad + s.c * cell, pad + (s.r + 1) * cell);
+    }
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function hexA(hex, a) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+  }
+  function shade(hex, amt) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const f = v => Math.max(0, Math.min(255, Math.round(v + v * amt)));
+    return `rgb(${f(n >> 16 & 255)},${f(n >> 8 & 255)},${f(n & 255)})`;
+  }
+
+  // ---------- HUD / overlay ----------
+  function updateHud() {
+    $('sLevel').textContent = level - (S.status === 'won' ? 1 : 0);
+    $('sBalls').textContent = S.balls.length;
+    $('sArea').textContent = S.status === 'lost' ? '—' : S.liveSize;
+    $('sLines').textContent = S.lines;
+    $('sUndo').textContent = S.undos;
+    $('bUndo').disabled = !S.history.length || S.undos <= 0 || S.status === 'won';
+  }
+  function showOverlay(title, text, buttons) {
+    $('oTitle').textContent = title;
+    $('oText').textContent = text;
+    const box = $('oBtns'); box.innerHTML = '';
+    for (const b of buttons) {
+      const el = document.createElement('button');
+      el.textContent = b.label;
+      if (b.secondary) el.className = 'secondary';
+      el.addEventListener('click', b.fn);
+      box.appendChild(el);
+    }
+    $('overlay').classList.add('show');
+  }
+  function hideOverlay() { $('overlay').classList.remove('show'); }
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (S.status !== 'lost') step(dt);
+    render(now);
+    requestAnimationFrame(frame);
+  }
+
+  if (/[?&]debug\b/.test(location.search)) window.__bc = { get S() { return S; }, step, analyse, draw, canDraw };
+
+  newLevel();
+  if (level === 1) {
+    showOverlay('Ball Confine',
+      'Draw walls between dots to herd the balls together. Win by trapping every ball inside one cell. If your walls split them up, you lose.',
+      [{ label: 'Play', fn: hideOverlay }]);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
