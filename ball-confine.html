@@ -33,6 +33,7 @@
     --scrim: rgba(232, 238, 244, 0.7);
     --line: rgba(15, 29, 46, 0.16);
     --shadow: 0 8px 30px rgba(15, 29, 46, .14);
+    --ph-a: #d4d8dd; --ph-b: #c9ced4; --ph-edge: #9aa3ad; --ph-ink: #4b5561;
     --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
     --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     padding-top: env(safe-area-inset-top, 0px);
@@ -40,6 +41,7 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+      --ph-a: #1d2530; --ph-b: #222b37; --ph-edge: #4a5868; --ph-ink: #9aa7b6;
       /* Dark theme: containment lab. Steel-blue floor, neon fields, amber hazard stripes. */
       --bg: #070d18; --panel: #0f1a2b; --ink: #e2ecf7; --muted: #8aa0b8;
       --accent: #34d399; --accent-ink: #052016; --frame: #3b5b82; --wall: #22d3ee;
@@ -52,6 +54,7 @@
     }
   }
   :root[data-theme="dark"] {
+      --ph-a: #1d2530; --ph-b: #222b37; --ph-edge: #4a5868; --ph-ink: #9aa7b6;
     --bg: #070d18; --panel: #0f1a2b; --ink: #e2ecf7; --muted: #8aa0b8;
     --accent: #34d399; --accent-ink: #052016; --frame: #3b5b82; --wall: #22d3ee;
     --grow: #38bdf8; --danger: #fb7185; --gold: #fbbf24; --anti: #e879f9;
@@ -180,6 +183,48 @@
   #toast.good { background: var(--anti); }
   #toast.show { opacity: 1; }
   .hint { color: var(--muted); font-size: .78rem; padding-block: 0 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); text-align: center; }
+  /* ---------- Story layer (greybox: placeholders mark where Gemini art goes) ---------- */
+  .ph {
+    display: grid; place-items: center; text-align: center;
+    background: repeating-linear-gradient(45deg, var(--ph-a) 0 8px, var(--ph-b) 8px 16px);
+    border: 1px dashed var(--ph-edge); border-radius: 8px;
+    color: var(--ph-ink); font-family: var(--display); font-size: .62rem; letter-spacing: .12em;
+    text-transform: uppercase; line-height: 1.3; padding: 4px; max-width: 100%;
+  }
+  .ph.wide { width: 100%; aspect-ratio: 16 / 7; margin: 4px 0 10px; }
+  .ph.portrait { width: 56px; height: 56px; flex: none; border-radius: 10px; font-size: .5rem; }
+  #radioOverlay { align-items: flex-end; padding: 10px; cursor: pointer; }
+  .radio {
+    width: 100%; max-width: 520px; margin: 0 auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    padding: 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .radio .row { display: flex; gap: 12px; align-items: flex-start; }
+  .radio .who { font-family: var(--display); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .radio .who.hale { color: var(--wall); }
+  .radio .who.okafor { color: var(--gold); }
+  .radio .who.sys { color: var(--muted); }
+  .radio .line { margin: 4px 0 0; font-size: 1rem; line-height: 1.45; min-height: 2.9em; color: var(--ink); }
+  .radio .line.sys { font-family: var(--display); letter-spacing: .08em; color: var(--muted); }
+  .radio .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .radio .foot span { font-size: .72rem; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .shiftname { font-family: var(--display); color: var(--wall); letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; margin-bottom: 2px; }
+  .hale { color: var(--wall) !important; font-style: italic; }
+  #logOverlay .card { max-height: 100%; display: flex; flex-direction: column; }
+  #logList { text-align: left; flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; padding-right: 4px; }
+  #logList h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+  #logList h3:first-child { margin-top: 0; }
+  #logList p { margin: 0 0 6px; font-size: .88rem; line-height: 1.45; color: var(--ink); }
+  #logList b { font-family: var(--display); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+  #logList b.hale { color: var(--wall) !important; font-style: normal; }
+  #logList b.okafor { color: var(--gold); }
+  #logList b.sys { color: var(--muted); }
+  #logList .locked { color: var(--muted); font-style: italic; }
+  .choice { display: grid; gap: 10px; margin-top: 14px; }
+  .choice button { width: 100%; }
+  button.danger { background: var(--danger); color: #fff; border-color: transparent; font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 10px 22px; }
+  .modetag { display: none; font-family: var(--display); font-size: .62rem; letter-spacing: .14em; color: var(--danger); border: 1px solid var(--danger); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+  body.harvest .modetag { display: inline-block; }
   @media (max-width: 560px) {
     h1 { font-size: 1rem; }
     h1 small { display: none; }
@@ -199,7 +244,7 @@
 </head>
 <body>
 <header>
-  <h1>Ball Confine <small>Containment lab</small></h1>
+  <h1>Ball Confine <small>Meridian Station</small><span class="modetag">Harvest</span></h1>
   <div class="stats">
     <div class="stat"><span>Level</span><b id="levelVal">1</b></div>
     <div class="stat"><span>Score</span><b id="scoreVal">0</b></div>
@@ -222,7 +267,8 @@
     <!-- Start / help -->
     <div class="overlay" id="startOverlay">
       <div class="card">
-        <div class="tag">Containment protocol</div>
+        <div class="ph wide">Art · Title: the Lattice reactor, Meridian Station</div>
+        <div class="tag">Meridian Research Station · Night shift</div>
         <h2>Ball Confine</h2>
         <canvas id="tutCanvas"></canvas>
         <p id="tutCaption">Tap beside the orbs</p>
@@ -234,15 +280,16 @@
           <li>From level 4, antimatter shows up. Wall it off on its own; it can't be in the orbs' chamber when you finish.</li>
         </ul>
         <div class="statgrid" id="startStats"></div>
-        <div class="buttons"><button class="primary" id="startBtn">Start shift</button></div>
+        <div class="buttons"><button class="primary" id="startBtn">Start shift</button><button id="logBtn1">Shift log</button></div>
       </div>
     </div>
 
     <!-- New feature introduction -->
     <div class="overlay" id="newOverlay" hidden>
       <div class="card">
-        <div class="tag">New specimen</div>
+        <div class="tag" id="newTag">Specimen file</div>
         <h2 id="newTitle">New</h2>
+        <div class="ph wide" id="newArt">Art · Specimen file</div>
         <div class="newthing"><canvas id="newIcon" width="128" height="128"></canvas><p id="newText"></p></div>
         <div class="buttons"><button class="primary" id="newBtn">Got it</button></div>
       </div>
@@ -251,6 +298,7 @@
     <!-- Countdown -->
     <div class="overlay passive" id="countOverlay" hidden>
       <div class="count">
+        <div class="shiftname" id="countShift"></div>
         <div class="lvl" id="countLvl">Level 1</div>
         <div class="obj" id="countObj"></div>
         <div class="num" id="countNum">3</div>
@@ -264,6 +312,7 @@
         <p id="pauseText"></p>
         <div class="buttons">
           <button class="primary" id="resumeBtn">Resume</button>
+          <button id="logBtn2">Shift log</button>
           <button id="quitBtn">New game</button>
         </div>
       </div>
@@ -275,16 +324,67 @@
         <h2 id="clearTitle">Contained</h2>
         <div class="stars" id="clearStars"><span>★</span><span>★</span><span>★</span></div>
         <p class="starkey">★ threshold met · ★ fields at or under par · ★ time at or under par</p>
+        <p class="hale" id="haleLine"></p>
         <table class="breakdown"><tbody id="clearRows"></tbody></table>
         <p id="clearRecord"></p>
         <div class="buttons"><button class="primary" id="nextBtn">Next level</button></div>
       </div>
     </div>
 
+    <!-- Radio message -->
+    <div class="overlay" id="radioOverlay" hidden>
+      <div class="radio" role="dialog" aria-live="polite">
+        <div class="row">
+          <div class="ph portrait" id="radioArt">Art</div>
+          <div style="min-width:0;flex:1">
+            <div class="who" id="radioWho"></div>
+            <p class="line" id="radioLine"></p>
+          </div>
+        </div>
+        <div class="foot"><span id="radioHint">Tap to continue</span><button id="radioSkip">Skip</button></div>
+      </div>
+    </div>
+
+    <!-- Shift log -->
+    <div class="overlay" id="logOverlay" hidden>
+      <div class="card">
+        <div class="tag">Meridian Station</div>
+        <h2>Shift log</h2>
+        <div id="logList"></div>
+        <div class="buttons"><button class="primary" id="logClose">Close</button></div>
+      </div>
+    </div>
+
+    <!-- Final choice -->
+    <div class="overlay" id="choiceOverlay" hidden>
+      <div class="card">
+        <div class="tag">Override authorised</div>
+        <h2>Your call</h2>
+        <div class="ph wide">Art · Lattice core at full output, override console</div>
+        <p class="hale" id="choiceText"></p>
+        <div class="choice">
+          <button class="primary" id="shutBtn">Shut it down</button>
+          <button class="danger" id="keepBtn">Keep it running</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ending -->
+    <div class="overlay" id="endOverlay" hidden>
+      <div class="card">
+        <div class="tag" id="endTag">Ending</div>
+        <h2 id="endTitle"></h2>
+        <div class="ph wide" id="endArt"></div>
+        <p id="endText"></p>
+        <div class="statgrid" id="endStats"></div>
+        <div class="buttons"><button class="primary" id="endBtn"></button></div>
+      </div>
+    </div>
+
     <!-- Game over -->
     <div class="overlay" id="overOverlay" hidden>
       <div class="card">
-        <h2 id="overTitle">Containment failed</h2>
+        <h2 id="overTitle">Shift failed</h2>
         <p id="overText"></p>
         <div class="statgrid" id="overStats"></div>
         <div class="buttons"><button class="primary" id="againBtn">New shift</button></div>
@@ -339,12 +439,104 @@
   }
   const baseSpeed = (n) => 200 + 10 * Math.min(n - 1, 12);
 
+  // ---------- Story ----------
+  const FINALE = 12;
+  const SHIFTS = [
+    { id: 1, name: 'Routine', from: 1, to: 2 },
+    { id: 2, name: 'Unstable', from: 3, to: 3 },
+    { id: 3, name: 'The Dark One', from: 4, to: 4 },
+    { id: 4, name: 'Weight', from: 5, to: 6 },
+    { id: 5, name: 'Charged', from: 7, to: 9 },
+    { id: 6, name: 'Two Shadows', from: 10, to: 11 },
+    { id: 7, name: 'Your Call', from: 12, to: 12 },
+  ];
+  const shiftOf = (n) => SHIFTS.find(s => n >= s.from && n <= s.to) || null;
+  const WHO = {
+    okafor: { name: 'Dr. Ines Okafor', art: 'Art · Okafor portrait (video feed)' },
+    hale: { name: 'HALE · Safety AI', art: 'Art · HALE sensor eye' },
+    sys: { name: 'Station log', art: 'Art · Station icon' },
+  };
+  // Radio scripts: pre:N plays before level N, post:N after clearing it.
+  const RADIO = {
+    'pre:1': [
+      ['sys', 'MERIDIAN RESEARCH STATION · −1,040 m · 23:58'],
+      ['okafor', "Operator 7? Good. The day crew's out. The Lattice is shedding a few strays tonight."],
+      ['okafor', 'Fence them into a small room and the collectors do the rest. Easy first shift.'],
+      ['hale', 'Good evening, Operator. I am HALE. I will be monitoring containment efficiency.'],
+      ['hale', 'Tap to raise a field, swipe to turn it. Keep the orbs together: splitting them causes a breach.'],
+    ],
+    'post:1': [['hale', 'Cluster absorbed. Collectors at 4%.']],
+    'pre:2': [['okafor', "Another batch, same as before. You're a natural."]],
+    'post:2': [
+      ['okafor', "That's the strays done. Grab a coffee."],
+      ['hale', 'Lattice output is rising, Doctor.'],
+      ['okafor', 'It does that. Nothing to worry about.'],
+    ],
+    'pre:3': [
+      ['hale', 'New readings. Small particles, moving fast.'],
+      ['okafor', 'The Lattice sheds fast ones now and then. Totally normal.'],
+      ['hale', 'That is not in my records as normal.'],
+    ],
+    'post:3': [['okafor', 'Nice work. Keep an eye on the board, it might get busy.']],
+    'pre:4': [
+      ['hale', 'Alert. Unidentified specimen in the chamber.'],
+      ['hale', 'Operator, do not let it touch the cluster. Wall it off on its own.'],
+      ['okafor', '…'],
+      ['okafor', "Fine. It's antimatter. The Lattice was built to make it. That part wasn't in your briefing."],
+    ],
+    'post:4': [
+      ['hale', 'Antimatter isolated. Doctor, this was not disclosed to the safety system.'],
+      ['okafor', "Because you'd have shut us down, HALE."],
+    ],
+    'pre:5': [
+      ['hale', 'Dense cores detected. They are heavy. They will push the others around.'],
+      ['okafor', 'Operator, when you contain these, leave the collectors on hold. I want samples.'],
+    ],
+    'pre:6': [['hale', 'Logging: Dr. Okafor has requested samples instead of disposal. Third request tonight.']],
+    'post:6': [['okafor', 'Samples received. Beautiful. Keep going.']],
+    'pre:7': [
+      ['hale', 'These orbs gain energy every time they bounce. Squeezing them makes them hotter.'],
+      ['hale', 'Also: Lattice output rises each time you contain a cluster.'],
+      ['okafor', 'Coincidence.'],
+      ['hale', 'It is not.'],
+    ],
+    'pre:8': [['hale', 'The Lattice is matching your timing, Operator. It is learning from you.']],
+    'pre:9': [['okafor', "Two more and we're through the night. Don't slow down now."]],
+    'post:9': [['hale', 'Outbound lift active. The clusters are going up, Doctor. Not to disposal.']],
+    'pre:10': [
+      ['hale', 'Two antimatter specimens. Lattice output at 340%.'],
+      ['hale', 'Operator, I have reviewed the logs. Dr. Okafor triggered tonight\'s surge on purpose.'],
+      ['okafor', "It's antimatter, HALE. One gram is worth more than this whole station."],
+      ['okafor', "Operator. Just keep containing. That's all I'm asking."],
+    ],
+    'pre:11': [['hale', 'I cannot override a human operator. You can.']],
+    'post:11': [['hale', 'One cluster remains, and it is the largest yet. After it, the choice is yours.']],
+    'pre:12': [
+      ['okafor', 'Last one. Contain it and send it up. Then we all go home rich.'],
+      ['hale', 'Or contain it and let me collapse the Lattice. The station goes dark. Nobody gets hurt.'],
+    ],
+    'end:shutdown': [
+      ['hale', 'Override accepted. Collapsing the Lattice.'],
+      ['okafor', 'Operator, wait—'],
+      ['sys', 'MERIDIAN RESEARCH STATION · POWER OFFLINE · 05:41'],
+      ['hale', 'Shift complete. Thank you, Operator.'],
+    ],
+    'end:keep': [
+      ['okafor', 'Good choice. Smart choice.'],
+      ['hale', 'Noted.'],
+      ['sys', 'LATTICE OUTPUT 410% · HARVEST MODE ENGAGED'],
+    ],
+  };
+  const SPECIMEN_NO = { fast: 1, anti: 2, big: 3, accel: 4 };
+  const haleStars = (n) => ['', 'One star. Contained, barely.', 'Two stars. Acceptable.', 'Three stars. Efficiency noted.'][n];
+
   // ---------- DOM ----------
   const $ = (id) => document.getElementById(id);
   const canvas = $('game');
   const ctx = canvas.getContext('2d');
   const stage = $('stage');
-  const ov = { start: $('startOverlay'), newf: $('newOverlay'), count: $('countOverlay'), pause: $('pauseOverlay'), clear: $('clearOverlay'), over: $('overOverlay') };
+  const ov = { start: $('startOverlay'), newf: $('newOverlay'), count: $('countOverlay'), pause: $('pauseOverlay'), clear: $('clearOverlay'), over: $('overOverlay'),
+    radio: $('radioOverlay'), log: $('logOverlay'), choice: $('choiceOverlay'), end: $('endOverlay') };
 
   // ---------- Storage ----------
   const store = {
@@ -353,6 +545,8 @@
   };
   const stats = Object.assign({ bestScore: 0, bestLevel: 0, totalConfined: 0, gamesPlayed: 0, perfects: 0, tightest: null, stars: 0 }, store.get('ballConfine.stats', {}));
   const saveStats = () => store.set('ballConfine.stats', stats);
+  const heard = new Set(store.get('ballConfine.heard', []));
+  const endings = Object.assign({ shutdown: false, keep: false }, store.get('ballConfine.endings', {}));
 
   // ---------- State ----------
   let worldH = 700;
@@ -371,6 +565,8 @@
   let shakeT = 0, hitBall = null, hitT = 0, stampT = -1;
   let boxArea = 1;
   let toastTimer = 0;
+  let runStars = 0, harvest = false;
+  let radio = null; // { lines, i, done, typing, shown, timer }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---------- Sound ----------
@@ -475,7 +671,8 @@
   function hideOverlays() { for (const k in ov) ov[k].hidden = true; }
 
   function newGame() {
-    score = 0; lives = START_LIVES;
+    score = 0; lives = START_LIVES; runStars = 0;
+    setHarvest(false);
     stats.gamesPlayed++; saveStats();
     startLevel(1);
   }
@@ -507,13 +704,119 @@
       balls.push(makeBall(type, i, x, y, box));
     });
     hideOverlays();
-    if (cfg.intro) showFeature(cfg.intro);
-    else beginCountdown();
+    playRadio('pre:' + n, () => { if (cfg.intro) showFeature(cfg.intro); else beginCountdown(); });
     updateHud();
   }
 
+  function setHarvest(on) { harvest = on; document.body.classList.toggle('harvest', on); }
+
+  // ---------- Radio ----------
+  function playRadio(key, done) {
+    const lines = RADIO[key];
+    if (!lines) { done(); return; }
+    state = 'radio';
+    heard.add(key); store.set('ballConfine.heard', [...heard]);
+    radio = { lines, i: -1, done, typing: false, timer: 0 };
+    ov.radio.hidden = false;
+    nextRadioLine();
+  }
+  function nextRadioLine() {
+    const r = radio;
+    if (!r) return;
+    if (r.typing) { clearInterval(r.timer); r.typing = false; $('radioLine').textContent = r.lines[r.i][1]; return; }
+    r.i++;
+    if (r.i >= r.lines.length) { endRadio(); return; }
+    const [who, text] = r.lines[r.i];
+    $('radioWho').textContent = WHO[who].name;
+    $('radioWho').className = 'who ' + who;
+    $('radioArt').textContent = WHO[who].art;
+    $('radioLine').className = 'line' + (who === 'sys' ? ' sys' : '');
+    $('radioHint').textContent = r.i === r.lines.length - 1 ? 'Tap to close' : 'Tap to continue';
+    if (reduceMotion) { $('radioLine').textContent = text; return; }
+    let k = 0;
+    r.typing = true;
+    $('radioLine').textContent = '';
+    if (who !== 'sys') tone(who === 'hale' ? 1320 : 520, 0.04, 'square', 0.02);
+    r.timer = setInterval(() => {
+      k += 2;
+      $('radioLine').textContent = text.slice(0, k);
+      if (k >= text.length) { clearInterval(r.timer); r.typing = false; }
+    }, 22);
+  }
+  function endRadio() {
+    const r = radio;
+    if (!r) return;
+    clearInterval(r.timer);
+    radio = null;
+    ov.radio.hidden = true;
+    r.done();
+  }
+  ov.radio.addEventListener('click', (e) => { if (e.target.id !== 'radioSkip') nextRadioLine(); });
+  $('radioSkip').addEventListener('click', (e) => { e.stopPropagation(); endRadio(); });
+
+  // ---------- Shift log ----------
+  function openLog() {
+    const parts = [];
+    for (const s of SHIFTS) {
+      const keys = Object.keys(RADIO).filter(k => { const n = +k.split(':')[1]; return n >= s.from && n <= s.to; });
+      const got = keys.filter(k => heard.has(k));
+      parts.push(`<h3>Shift ${s.id} · ${s.name}</h3>`);
+      if (!got.length) { parts.push('<p class="locked">Not reached yet.</p>'); continue; }
+      for (const k of got) for (const [who, text] of RADIO[k]) parts.push(`<p><b class="who ${who}">${who === 'sys' ? 'Log' : who === 'hale' ? 'HALE' : 'Okafor'}</b>${text}</p>`);
+    }
+    for (const [k, title] of [['end:shutdown', 'Ending · Lights out'], ['end:keep', 'Ending · Harvest']]) {
+      if (!heard.has(k)) continue;
+      parts.push(`<h3>${title}</h3>`);
+      for (const [who, text] of RADIO[k]) parts.push(`<p><b class="who ${who}">${who === 'sys' ? 'Log' : who === 'hale' ? 'HALE' : 'Okafor'}</b>${text}</p>`);
+    }
+    $('logList').innerHTML = parts.join('');
+    ov.log.hidden = false;
+    $('logList').scrollTop = 0;
+  }
+  $('logBtn1').addEventListener('click', openLog);
+  $('logBtn2').addEventListener('click', openLog);
+  $('logClose').addEventListener('click', () => { ov.log.hidden = true; });
+
+  // ---------- Finale ----------
+  function afterClear() {
+    ov.clear.hidden = true;
+    playRadio('post:' + level, () => { if (level === FINALE && !harvest) showChoice(); else startLevel(level + 1); });
+  }
+  function showChoice() {
+    state = 'ending';
+    const clean = runStars >= Math.round(FINALE * 3 * 0.75);
+    $('choiceText').textContent = clean
+      ? `HALE: You ran a clean shift (${runStars} stars). I am giving you the override.`
+      : `HALE: ${runStars} stars tonight. The override is yours anyway, Operator. Choose.`;
+    ov.choice.hidden = false;
+  }
+  function showEnding(kind) {
+    ov.choice.hidden = true;
+    playRadio('end:' + kind, () => {
+      state = 'ending';
+      endings[kind] = true; store.set('ballConfine.endings', endings);
+      if (score > stats.bestScore) { stats.bestScore = score; saveStats(); }
+      const shut = kind === 'shutdown';
+      $('endTag').textContent = `Ending ${shut ? '1' : '2'} of 2`;
+      $('endTitle').textContent = shut ? 'Lights out' : 'Harvest';
+      $('endArt').textContent = shut ? 'Art · Meridian going dark, lift rising into dawn' : 'Art · Glowing antimatter shipment heading to the surface';
+      $('endText').textContent = shut
+        ? 'The Lattice is gone and Meridian goes quiet. You ride the lift up into the dawn.'
+        : 'The shipments keep going up and the Lattice keeps getting hotter. The night never really ends.';
+      $('endStats').innerHTML = [['Final score', score], ['Stars tonight', runStars], ['Endings found', `${+endings.shutdown + +endings.keep} / 2`], ['Best score', stats.bestScore]]
+        .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+      $('endBtn').textContent = shut ? 'New shift' : 'Keep going';
+      $('endBtn').onclick = () => { ov.end.hidden = true; if (shut) newGame(); else { setHarvest(true); startLevel(level + 1); } };
+      ov.end.hidden = false;
+    });
+  }
+  $('shutBtn').addEventListener('click', () => showEnding('shutdown'));
+  $('keepBtn').addEventListener('click', () => showEnding('keep'));
+
   function showFeature(kind) {
     state = 'feature';
+    $('newTag').textContent = `Specimen file #${SPECIMEN_NO[kind]}`;
+    $('newArt').textContent = `Art · Specimen file: ${TYPES[kind].name}`;
     $('newTitle').textContent = TYPES[kind].name;
     $('newText').textContent = TYPES[kind].desc;
     drawFeatureIcon(kind);
@@ -523,7 +826,9 @@
   function beginCountdown() {
     state = 'countdown';
     countT = 0;
-    $('countLvl').textContent = `Level ${level}`;
+    const sh = shiftOf(level);
+    $('countShift').textContent = harvest ? 'Harvest mode' : sh ? `Shift ${sh.id} · ${sh.name}` : '';
+    $('countLvl').textContent = level === FINALE && !harvest ? `Level ${level} · Final` : `Level ${level}`;
     $('countObj').textContent = levelGoalText(cfg);
     $('countNum').textContent = '3';
     ov.count.hidden = false;
@@ -575,7 +880,7 @@
       ['Best level', stats.bestLevel || '–'],
       ['Orbs contained', stats.totalConfined],
       ['Stars earned', stats.stars],
-      ['Games played', stats.gamesPlayed],
+      ['Endings found', `${+endings.shutdown + +endings.keep} / 2`],
       ['Tightest squeeze', stats.tightest === null ? '–' : stats.tightest.toFixed(1) + '%'],
     ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
   }
@@ -637,7 +942,7 @@
     else if (paused) setPaused(false);
   });
   $('newBtn').addEventListener('click', beginCountdownFromFeature);
-  $('nextBtn').addEventListener('click', () => startLevel(level + 1));
+  $('nextBtn').addEventListener('click', afterClear);
   $('againBtn').addEventListener('click', newGame);
 
 
@@ -699,16 +1004,16 @@
       if (score > stats.bestScore) stats.bestScore = score;
       saveStats();
       const newBest = score > 0 && score === stats.bestScore;
-      const why = reason === 'breach' ? 'The last field split the orbs apart. ' : 'An orb overloaded a charging field. ';
+      const why = reason === 'breach' ? 'HALE: Final breach. The last field split the cluster. ' : 'HALE: Final emitter overload. No backup generators left. ';
       $('overText').innerHTML = `${why}You reached level ${level} with <b>${score}</b> points.` + (newBest ? ' <span class="record">New best score!</span>' : '');
       statRows($('overStats'));
       setTimeout(() => { if (state === 'over') ov.over.hidden = false; }, 900);
     } else if (reason === 'breach') {
       sfx.breach();
-      showToast('Containment breach! The field collapsed.');
+      showToast(`HALE: Containment breach. Backup generators: ${lives}`);
     } else {
       sfx.overload();
-      showToast('Field overload!');
+      showToast(`HALE: Emitter overload. Backup generators: ${lives}`);
     }
   }
 
@@ -753,7 +1058,7 @@
     const antiOut = balls.some(b => !isOrb(b) && b.rect === otherSide);
     if (antiOut) {
       pulses.push({ rect: otherSide, color: colors.anti, t: 0 });
-      if (hadAnti && !antiInGroup()) { setTimeout(sfx.isolate, 80); showToast('Antimatter isolated', true); }
+      if (hadAnti && !antiInGroup()) { setTimeout(sfx.isolate, 80); showToast('HALE: Antimatter isolated', true); }
     } else {
       pulses.push({ rect: otherSide, color: colors.gold, t: 0 });
       setTimeout(sfx.vent, 60);
@@ -779,6 +1084,7 @@
 
     stats.totalConfined += cfg.count;
     stats.stars += starsWon;
+    runStars += starsWon;
     if (level > stats.bestLevel) stats.bestLevel = level;
     if (starsWon === 3) stats.perfects++;
     const prevTight = stats.tightest;
@@ -788,6 +1094,7 @@
     saveStats();
 
     $('clearTitle').textContent = `Level ${level} contained`;
+    $('haleLine').textContent = 'HALE: ' + haleStars(starsWon);
     [...$('clearStars').children].forEach((s, i) => s.classList.remove('on'));
     const rows = [
       [`${cfg.count} orbs contained`, confined],
@@ -800,8 +1107,10 @@
       `<tr class="total"><td>Score</td><td>${score}</td></tr>`;
     const notes = [];
     if (tightRecord && prevTight !== null) notes.push(`<span class="record">New record: tightest squeeze, ${pct.toFixed(1)}% (was ${prevTight.toFixed(1)}%).</span>`);
-    notes.push(`Next: ${levelGoalText(levelConfig(level + 1))}.`);
+    if (level === FINALE && !harvest) notes.push('Last cluster of the night. Time to decide.');
+    else notes.push(`Next: ${levelGoalText(levelConfig(level + 1))}.`);
     $('clearRecord').innerHTML = notes.join('<br>');
+    $('nextBtn').textContent = level === FINALE && !harvest ? 'Continue' : 'Next level';
     sfx.clear();
     for (const b of balls) if (isOrb(b)) burst(b.x, b.y, 8, [b.color], 200);
     updateHud();
@@ -878,7 +1187,7 @@
   function update(dt) {
     updateEffects(dt);
     if (paused) return;
-    if (state === 'intro' || state === 'feature' || state === 'over') {
+    if (state === 'intro' || state === 'feature' || state === 'over' || state === 'radio' || state === 'ending') {
       if (state === 'intro') stepBalls(dt);
       return;
     }
@@ -1257,7 +1566,8 @@
 
   if (/[?&]debug\b/.test(location.search)) {
     window.__bc = { get balls() { return balls; }, get rects() { return rects; }, get state() { return state; }, get lives() { return lives; },
-      placeWall, livePct, antiInGroup, startLevel, get growing() { return growing; } };
+      placeWall, livePct, antiInGroup, startLevel, showChoice, get radio() { return radio; }, get growing() { return growing; },
+      set level(v) { level = v; }, finishNow() { levelCleared(); } };
   }
 
   window.addEventListener('resize', resize);
