@@ -4,174 +4,205 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ball Confine</title>
-<meta name="description" content="Herd the bouncing balls into one small space by walling off everything around them. Every level adds one more ball.">
+<meta name="description" content="Lab containment arcade: charge force fields to trap the bouncing energy orbs in one small chamber, and keep the antimatter out.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
 <style>
-  /* One-screen arcade layout: HUD on top, objective strip, playfield fills the rest. */
+  /* Layout: one-screen arcade. HUD on top, readout strip, containment chamber fills the rest. */
   :root {
-    --bg: #f9f6e5;
+    /* Light theme: cleanroom. White floor, tinted glass, teal force fields. */
+    --bg: #e8eef4;
     --panel: #ffffff;
-    --ink: #1f2937;
-    --muted: #6b7280;
-    --accent: #16a34a;
+    --ink: #0f1d2e;
+    --muted: #5b6b7f;
+    --accent: #059669;
     --accent-ink: #ffffff;
-    --frame: #374151;
-    --wall: #374151;
-    --grow: #2563eb;
-    --danger: #dc2626;
+    --frame: #1e3a5f;
+    --wall: #0891b2;
+    --grow: #0284c7;
+    --danger: #e11d48;
     --gold: #b45309;
-    --empty: rgba(55, 65, 81, 0.16);
-    --live: rgba(22, 163, 74, 0.07);
-    --field: #fffdf4;
-    --track: rgba(55, 65, 81, 0.14);
-    --scrim: rgba(249, 246, 229, 0.6);
-    --line: rgba(31, 41, 55, 0.18);
-    --shadow: 0 8px 30px rgba(0,0,0,.12);
+    --anti: #c026d3;
+    --field: #f7fafc;
+    --grid: rgba(30, 64, 175, 0.07);
+    --live: rgba(8, 145, 178, 0.05);
+    --sealed-fill: rgba(30, 58, 95, 0.10);
+    --sealed: rgba(202, 138, 4, 0.30);
+    --track: rgba(30, 58, 95, 0.14);
+    --scrim: rgba(232, 238, 244, 0.7);
+    --line: rgba(15, 29, 46, 0.16);
+    --shadow: 0 8px 30px rgba(15, 29, 46, .14);
+    --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #171717; --panel: #232323; --ink: #e5e7eb; --muted: #9ca3af;
-      --accent: #22c55e; --accent-ink: #0b1a10; --frame: #d1d5db; --wall: #d1d5db;
-      --grow: #60a5fa; --danger: #f87171; --gold: #fbbf24;
-      --empty: rgba(209, 213, 219, 0.16); --live: rgba(34, 197, 94, 0.08);
-      --field: #1e1e1e; --track: rgba(209, 213, 219, 0.16); --scrim: rgba(23, 23, 23, 0.6);
-      --line: rgba(229, 231, 235, 0.2); --shadow: 0 8px 30px rgba(0,0,0,.5);
+      /* Dark theme: containment lab. Steel-blue floor, neon fields, amber hazard stripes. */
+      --bg: #070d18; --panel: #0f1a2b; --ink: #e2ecf7; --muted: #8aa0b8;
+      --accent: #34d399; --accent-ink: #052016; --frame: #3b5b82; --wall: #22d3ee;
+      --grow: #38bdf8; --danger: #fb7185; --gold: #fbbf24; --anti: #e879f9;
+      --field: #0c1626; --grid: rgba(96, 165, 250, 0.08); --live: rgba(34, 211, 238, 0.04);
+      --sealed-fill: rgba(5, 10, 20, 0.55); --sealed: rgba(250, 204, 21, 0.16);
+      --track: rgba(138, 160, 184, 0.18); --scrim: rgba(7, 13, 24, 0.7);
+      --line: rgba(138, 160, 184, 0.22); --shadow: 0 8px 30px rgba(0, 0, 0, .55);
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #171717; --panel: #232323; --ink: #e5e7eb; --muted: #9ca3af;
-    --accent: #22c55e; --accent-ink: #0b1a10; --frame: #d1d5db; --wall: #d1d5db;
-    --grow: #60a5fa; --danger: #f87171; --gold: #fbbf24;
-    --empty: rgba(209, 213, 219, 0.16); --live: rgba(34, 197, 94, 0.08);
-    --field: #1e1e1e; --track: rgba(209, 213, 219, 0.16); --scrim: rgba(23, 23, 23, 0.6);
-    --line: rgba(229, 231, 235, 0.2); --shadow: 0 8px 30px rgba(0,0,0,.5);
+    --bg: #070d18; --panel: #0f1a2b; --ink: #e2ecf7; --muted: #8aa0b8;
+    --accent: #34d399; --accent-ink: #052016; --frame: #3b5b82; --wall: #22d3ee;
+    --grow: #38bdf8; --danger: #fb7185; --gold: #fbbf24; --anti: #e879f9;
+    --field: #0c1626; --grid: rgba(96, 165, 250, 0.08); --live: rgba(34, 211, 238, 0.04);
+    --sealed-fill: rgba(5, 10, 20, 0.55); --sealed: rgba(250, 204, 21, 0.16);
+    --track: rgba(138, 160, 184, 0.18); --scrim: rgba(7, 13, 24, 0.7);
+    --line: rgba(138, 160, 184, 0.22); --shadow: 0 8px 30px rgba(0, 0, 0, .55);
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { height: 100%; margin: 0; }
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--body);
     background: var(--bg);
     color: var(--ink);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: flex; flex-direction: column; align-items: center;
     overflow: hidden;
-    -webkit-user-select: none;
-    user-select: none;
+    -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
   header {
     width: 100%; max-width: 1100px;
     display: flex; align-items: center; justify-content: space-between;
-    gap: 8px 12px; padding: 10px 16px 6px; flex-wrap: wrap;
+    gap: 8px 12px; flex-wrap: wrap;
+    padding-block: 10px 6px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
-  h1 { font-size: 1.15rem; margin: 0; color: var(--accent); letter-spacing: .02em; }
-  .stats { display: flex; gap: 16px; font-variant-numeric: tabular-nums; font-size: .95rem; align-items: baseline; }
-  .stat span { color: var(--muted); font-size: .75rem; margin-right: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  h1 { font-family: var(--display); font-size: 1.2rem; margin: 0; color: var(--wall); letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+  h1 small { color: var(--muted); font-size: .62em; letter-spacing: .14em; margin-left: 6px; font-weight: 500; }
+  .stats { display: flex; gap: 16px; font-variant-numeric: tabular-nums; align-items: baseline; }
+  .stat b { font-family: var(--display); font-size: 1.05rem; font-weight: 600; }
+  .stat span { color: var(--muted); font-size: .7rem; margin-right: 5px; text-transform: uppercase; letter-spacing: .1em; }
   #livesVal { color: var(--danger); letter-spacing: 2px; }
   .controls { display: flex; gap: 6px; }
   button {
     font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-    border-radius: 10px; padding: 6px 11px; cursor: pointer; min-height: 36px; min-width: 36px;
+    border-radius: 8px; padding: 6px 11px; cursor: pointer; min-height: 36px; min-width: 36px;
   }
-  button:hover { border-color: var(--accent); }
-  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; padding: 10px 22px; }
+  button:hover { border-color: var(--wall); }
+  button:focus-visible { outline: 2px solid var(--wall); outline-offset: 2px; }
+  button.primary {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .08em;
+    background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 700; padding: 10px 24px;
+  }
   #orientBtn { display: inline-flex; align-items: center; gap: 6px; }
   #orientIcon { display: inline-block; width: 18px; height: 18px; position: relative; }
-  #orientIcon::before { content: ""; position: absolute; background: var(--grow); border-radius: 2px; }
+  #orientIcon::before { content: ""; position: absolute; background: var(--wall); border-radius: 2px; box-shadow: 0 0 6px var(--wall); }
   #orientIcon.v::before { left: 7px; top: 0; width: 4px; height: 18px; }
   #orientIcon.h::before { top: 7px; left: 0; height: 4px; width: 18px; }
   .goals {
     width: 100%; max-width: 1100px;
-    display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
-    padding: 0 16px 8px; font-size: .85rem; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+    padding-block: 0 8px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
   }
   .goal { display: inline-flex; align-items: center; gap: 6px; }
-  .goal b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .goal b { font-family: var(--display); color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
   .goal.done b { color: var(--accent); }
-  .meter { width: 90px; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; position: relative; }
-  .meter i { position: absolute; inset: 0 auto 0 0; background: var(--grow); border-radius: 3px; }
+  .goal.bad b { color: var(--anti); }
+  .meter { width: 96px; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; position: relative; }
+  .meter i { position: absolute; inset: 0 auto 0 0; background: var(--grow); border-radius: 3px; box-shadow: 0 0 6px var(--grow); }
   .meter em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
-  .goal.done .meter i { background: var(--accent); }
+  .goal.done .meter i { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
   #stage {
     flex: 1; width: 100%;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 16px 12px; min-height: 0; position: relative;
+    padding-block: 0 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    min-height: 0; position: relative;
   }
   #wrap { position: relative; }
   canvas#game { display: block; border-radius: 6px; box-shadow: var(--shadow); touch-action: none; cursor: crosshair; }
   .overlay {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    background: var(--scrim); backdrop-filter: blur(2px);
+    background: var(--scrim); backdrop-filter: blur(3px);
     border-radius: 6px; overflow: auto; padding: 12px;
   }
   #startOverlay { z-index: 5; }
   .overlay.passive { background: transparent; backdrop-filter: none; pointer-events: none; }
   .card {
-    background: var(--panel); border-radius: 16px; box-shadow: var(--shadow);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
     padding: 22px 26px; width: min(440px, 100%); text-align: center; margin: auto;
   }
-  .card h2 { margin: 0 0 8px; font-size: 1.45rem; text-wrap: balance; }
+  .card h2 { font-family: var(--display); margin: 0 0 8px; font-size: 1.45rem; text-wrap: balance; letter-spacing: .04em; text-transform: uppercase; }
   .card p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
   .card .buttons { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
   .card ul { text-align: left; color: var(--muted); padding-left: 1.2rem; line-height: 1.55; margin: 10px 0 0; font-size: .92rem; }
   .card kbd { font: inherit; font-size: .85em; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .tag { font-family: var(--display); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
   #tutCanvas { width: 100%; max-width: 320px; aspect-ratio: 16 / 10; display: block; margin: 6px auto 4px; border-radius: 8px; }
   #tutCaption { min-height: 1.5em; color: var(--ink); font-weight: 500; }
-  .statgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin-top: 14px; text-align: left; font-size: .88rem; }
+  .statgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin-top: 14px; text-align: left; font-size: .86rem; }
   .statgrid div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 3px 0; }
   .statgrid span { color: var(--muted); }
-  .statgrid b { font-variant-numeric: tabular-nums; }
-  .breakdown { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  .statgrid b { font-family: var(--display); font-variant-numeric: tabular-nums; }
+  .breakdown { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; font-variant-numeric: tabular-nums; }
   .breakdown td { padding: 4px 0; border-bottom: 1px solid var(--line); text-align: left; color: var(--muted); }
-  .breakdown td:last-child { text-align: right; color: var(--ink); font-weight: 600; }
+  .breakdown td:last-child { text-align: right; color: var(--ink); font-weight: 600; font-family: var(--display); }
   .breakdown tr.total td { color: var(--ink); font-weight: 700; border-bottom: 0; padding-top: 8px; }
-  .badge { display: inline-block; background: var(--gold); color: var(--panel); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 700; letter-spacing: .04em; margin-left: 6px; vertical-align: middle; }
+  .stars { display: flex; justify-content: center; gap: 8px; margin: 4px 0 2px; font-size: 2rem; line-height: 1; }
+  .stars span { color: var(--track); transform: scale(.8); transition: transform .3s, color .3s; }
+  .stars span.on { color: var(--gold); transform: scale(1); text-shadow: 0 0 12px var(--gold); }
+  .starkey { font-size: .78rem !important; }
   .record { color: var(--gold) !important; font-weight: 600; }
   #overTitle { color: var(--danger); }
   #clearTitle { color: var(--accent); }
   .count { text-align: center; color: var(--ink); text-shadow: 0 1px 0 var(--field); }
-  .count .lvl { font-size: 1.3rem; font-weight: 700; }
+  .count .lvl { font-family: var(--display); font-size: 1.3rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
   .count .obj { color: var(--muted); margin-top: 4px; font-size: .95rem; }
-  .count .num { font-size: 4.5rem; font-weight: 800; color: var(--grow); line-height: 1.1; margin-top: 6px; }
+  .count .num { font-family: var(--display); font-size: 4.5rem; font-weight: 700; color: var(--wall); line-height: 1.1; margin-top: 6px; text-shadow: 0 0 24px var(--wall); }
   .newthing { display: flex; gap: 14px; align-items: center; text-align: left; margin-top: 8px; }
   .newthing canvas { flex: none; width: 64px; height: 64px; }
   #toast {
     position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
-    background: var(--danger); color: #fff; font-weight: 600; font-size: .9rem;
-    padding: 7px 14px; border-radius: 999px; box-shadow: var(--shadow);
+    background: var(--danger); color: #fff; font-family: var(--display); font-weight: 600; font-size: .85rem;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 6px; box-shadow: var(--shadow);
     pointer-events: none; opacity: 0; transition: opacity .25s; white-space: nowrap; z-index: 4;
   }
+  #toast.good { background: var(--anti); }
   #toast.show { opacity: 1; }
-  .hint { color: var(--muted); font-size: .8rem; padding: 0 16px 8px; text-align: center; }
+  .hint { color: var(--muted); font-size: .78rem; padding-block: 0 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); text-align: center; }
   @media (max-width: 560px) {
     h1 { font-size: 1rem; }
-    .stats { gap: 10px; font-size: .9rem; }
-    .stat span { font-size: .68rem; }
+    h1 small { display: none; }
+    .stats { gap: 10px; }
+    .stat span { font-size: .62rem; }
     .controls button { padding: 6px 8px; }
     .btnLabel { display: none; }
     .card { padding: 18px; }
     #toast { white-space: normal; text-align: center; width: max-content; max-width: 90%; }
   }
-  @media (prefers-reduced-motion: reduce) { .count .num { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .stars span { transition: none; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Ball Confine</h1>
+  <h1>Ball Confine <small>Containment lab</small></h1>
   <div class="stats">
     <div class="stat"><span>Level</span><b id="levelVal">1</b></div>
     <div class="stat"><span>Score</span><b id="scoreVal">0</b></div>
     <div class="stat"><span>Lives</span><b id="livesVal">♥♥♥</b></div>
   </div>
   <div class="controls">
-    <button id="orientBtn" title="Wall direction (Space / right-click / swipe)"><i id="orientIcon" class="v"></i><span class="btnLabel" id="orientLabel">Vertical</span></button>
+    <button id="orientBtn" title="Field direction (Space / right-click / swipe)"><i id="orientIcon" class="v"></i><span class="btnLabel" id="orientLabel">Vertical</span></button>
     <button id="pauseBtn" title="Pause (P)">❚❚</button>
     <button id="soundBtn" title="Sound">🔊</button>
     <button id="helpBtn" title="How to play">?</button>
@@ -187,23 +218,26 @@
     <!-- Start / help -->
     <div class="overlay" id="startOverlay">
       <div class="card">
+        <div class="tag">Containment protocol</div>
         <h2>Ball Confine</h2>
         <canvas id="tutCanvas"></canvas>
-        <p id="tutCaption">Tap beside the balls</p>
+        <p id="tutCaption">Tap beside the orbs</p>
         <ul>
-          <li>Tap to fire two dots out from that point. They draw a wall until they reach the edge.</li>
-          <li>Swipe up/down or left/right to pick the wall's direction, or use the button, <kbd>Space</kbd>, or right-click.</li>
-          <li>Any section with no balls in it is filled in. Shrink the balls' space down to the target to clear the level.</li>
-          <li>Keep the balls together. A wall that splits them apart breaks, and a ball touching an unfinished wall also costs a life. You have 3.</li>
+          <li>Tap to charge a force field. Two emitters race out from that point until they reach the walls.</li>
+          <li>Swipe up/down or left/right to pick the field's direction, or use the button, <kbd>Space</kbd>, or right-click.</li>
+          <li>Chambers with no orbs get sealed. Shrink the orbs' chamber below the containment threshold to clear the level.</li>
+          <li>Keep the orbs together. A field that splits them is a <b>containment breach</b>, and an orb hitting a field that is still charging overloads it. Either costs a life. You have 3.</li>
+          <li>From level 4, antimatter shows up. Wall it off on its own; it can't be in the orbs' chamber when you finish.</li>
         </ul>
         <div class="statgrid" id="startStats"></div>
-        <div class="buttons"><button class="primary" id="startBtn">Play</button></div>
+        <div class="buttons"><button class="primary" id="startBtn">Start shift</button></div>
       </div>
     </div>
 
     <!-- New feature introduction -->
     <div class="overlay" id="newOverlay" hidden>
       <div class="card">
+        <div class="tag">New specimen</div>
         <h2 id="newTitle">New</h2>
         <div class="newthing"><canvas id="newIcon" width="128" height="128"></canvas><p id="newText"></p></div>
         <div class="buttons"><button class="primary" id="newBtn">Got it</button></div>
@@ -234,7 +268,9 @@
     <!-- Level cleared -->
     <div class="overlay" id="clearOverlay" hidden>
       <div class="card">
-        <h2 id="clearTitle">Level cleared!</h2>
+        <h2 id="clearTitle">Contained</h2>
+        <div class="stars" id="clearStars"><span>★</span><span>★</span><span>★</span></div>
+        <p class="starkey">★ threshold met · ★ fields at or under par · ★ time at or under par</p>
         <table class="breakdown"><tbody id="clearRows"></tbody></table>
         <p id="clearRecord"></p>
         <div class="buttons"><button class="primary" id="nextBtn">Next level</button></div>
@@ -244,15 +280,15 @@
     <!-- Game over -->
     <div class="overlay" id="overOverlay" hidden>
       <div class="card">
-        <h2 id="overTitle">Game over</h2>
+        <h2 id="overTitle">Containment failed</h2>
         <p id="overText"></p>
         <div class="statgrid" id="overStats"></div>
-        <div class="buttons"><button class="primary" id="againBtn">Play again</button></div>
+        <div class="buttons"><button class="primary" id="againBtn">New shift</button></div>
       </div>
     </div>
   </div>
 </div>
-<div class="hint" id="hint">Swipe or press Space to switch wall direction · P to pause</div>
+<div class="hint" id="hint">Swipe or press Space to switch field direction · P to pause</div>
 
 <script>
 (() => {
@@ -267,16 +303,18 @@
   const MIN_GAP = 6;
   const START_LIVES = 3;
   const SWIPE_PX = 18;
-  const BALL_COLORS = ['#ef4444', '#3b82f6', '#f59e0b', '#a855f7', '#10b981', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1', '#14b8a6', '#e11d48'];
+  const GRID = 50;
+  const ORB_COLORS = ['#22d3ee', '#a3e635', '#fbbf24', '#f472b6', '#a78bfa', '#34d399', '#fb923c', '#38bdf8', '#fb7185', '#2dd4bf'];
 
   const TYPES = {
     normal: { r: 14, speed: 1.0 },
-    fast:   { r: 10, speed: 1.45, name: 'Speedy ball', desc: 'Smaller and much faster. It leaves a trail so you can follow it.' },
-    big:    { r: 22, speed: 0.7,  name: 'Heavy ball', desc: 'Big and slow, and it shoves lighter balls out of the way. It needs more room, so you can\'t squeeze it as tight.' },
-    accel:  { r: 14, speed: 0.9,  name: 'Charged ball', desc: 'Speeds up every time it bounces off a wall. The tighter you squeeze, the faster it gets.', grow: 1.04, max: 1.9 },
+    fast:   { r: 10, speed: 1.45, name: 'Unstable particle', desc: 'Small and much faster than the others. It leaves a flickering trail so you can track it.' },
+    big:    { r: 22, speed: 0.7,  name: 'Dense core', desc: 'Big and slow, and it shoves lighter orbs aside. It needs more room, so you can\'t squeeze it as tight.' },
+    accel:  { r: 14, speed: 0.9,  name: 'Charged orb', desc: 'Gains energy every time it bounces and glows hotter as it speeds up. The tighter you squeeze, the faster it gets.', grow: 1.04, max: 1.9 },
+    anti:   { r: 13, speed: 0.95, name: 'Antimatter', desc: 'Keep it out. Wall it off in a chamber of its own. You can\'t clear the level while it shares a chamber with the orbs.' },
   };
 
-  // What each level asks for. The target space shrinks and new ball types unlock as levels go up.
+  // What each level asks for. The threshold shrinks; new specimens and antimatter unlock as levels go up.
   function levelConfig(n) {
     const count = Math.min(n + 1, 10);
     const types = [];
@@ -288,11 +326,12 @@
     if (n >= 13) types.push('accel');
     while (types.length < count) types.push('normal');
     types.length = count;
+    const hazards = n >= 10 ? 2 : n >= 4 ? 1 : 0;
     const target = Math.max(5, Math.round(20 - 1.5 * (n - 1)));
-    const intro = { 3: 'fast', 5: 'big', 7: 'accel' }[n] || null;
-    const wallPar = 3 + Math.floor((n - 1) / 3);
-    const timePar = 10 + 2 * count + (20 - target);
-    return { count, types, target, intro, wallPar, timePar };
+    const intro = { 3: 'fast', 4: 'anti', 5: 'big', 7: 'accel' }[n] || null;
+    const wallPar = 3 + Math.floor((n - 1) / 3) + hazards;
+    const timePar = 10 + 2 * count + (20 - target) + 4 * hazards;
+    return { count, types, hazards, target, intro, wallPar, timePar };
   }
   const baseSpeed = (n) => 200 + 10 * Math.min(n - 1, 12);
 
@@ -308,7 +347,7 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
-  const stats = Object.assign({ bestScore: 0, bestLevel: 0, totalConfined: 0, gamesPlayed: 0, perfects: 0, tightest: null }, store.get('ballConfine.stats', {}));
+  const stats = Object.assign({ bestScore: 0, bestLevel: 0, totalConfined: 0, gamesPlayed: 0, perfects: 0, tightest: null, stars: 0 }, store.get('ballConfine.stats', {}));
   const saveStats = () => store.set('ballConfine.stats', stats);
 
   // ---------- State ----------
@@ -319,13 +358,13 @@
   let orient = 'v';
   let state = 'intro';          // intro | feature | countdown | play | cleared | over
   let paused = false;
-  let countT = 0, levelTime = 0;
+  let countT = 0, levelTime = 0, clock = 0;
   let balls = [], rects = [], walls = [];
   let growing = null;
   let wallsUsed = 0;
   let hover = null, press = null;
   let particles = [], pulses = [];
-  let shakeT = 0, hitBall = null, hitT = 0;
+  let shakeT = 0, hitBall = null, hitT = 0, stampT = -1;
   let boxArea = 1;
   let toastTimer = 0;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -348,14 +387,16 @@
     } catch {}
   }
   const sfx = {
-    place: () => tone(480, 0.07, 'triangle', 0.06),
-    snap: () => { tone(1400, 0.035, 'square', 0.05); tone(700, 0.09, 'triangle', 0.07, 900, 0.02); },
-    fill: () => tone(990, 0.14, 'sine', 0.05),
-    hit: () => { tone(220, 0.35, 'sawtooth', 0.08, 70); tone(110, 0.25, 'square', 0.04); },
-    over: () => { tone(330, 0.25, 'triangle', 0.07, 220); tone(220, 0.5, 'triangle', 0.07, 110, 0.25); },
+    charge: () => { tone(110, 0.5, 'sawtooth', 0.03, 330); tone(220, 0.5, 'sine', 0.03, 660); },
+    seal: () => { tone(90, 0.14, 'square', 0.07, 55); tone(1800, 0.03, 'square', 0.025); },
+    vent: () => tone(600, 0.25, 'sine', 0.035, 300, 0.05),
+    overload: () => { tone(200, 0.4, 'sawtooth', 0.08, 50); tone(95, 0.3, 'square', 0.04); },
+    breach: () => { for (let i = 0; i < 3; i++) { tone(880, 0.13, 'square', 0.045, null, i * 0.28); tone(620, 0.13, 'square', 0.045, null, i * 0.28 + 0.14); } },
+    isolate: () => { tone(330, 0.12, 'triangle', 0.06); tone(495, 0.18, 'triangle', 0.06, null, 0.1); },
+    over: () => { tone(440, 0.6, 'sawtooth', 0.05, 110); tone(220, 0.8, 'square', 0.03, 55, 0.3); },
     tick: () => tone(660, 0.06, 'sine', 0.05),
     go: () => tone(990, 0.12, 'sine', 0.06),
-    clear: () => { tone(660, 0.12, 'triangle'); tone(880, 0.12, 'triangle', 0.08, null, 0.11); tone(1180, 0.22, 'triangle', 0.08, null, 0.22); },
+    clear: () => { tone(523, 0.14, 'triangle'); tone(659, 0.14, 'triangle', 0.08, null, 0.12); tone(784, 0.14, 'triangle', 0.08, null, 0.24); tone(1046, 0.3, 'sine', 0.06, null, 0.36); },
   };
 
   // ---------- Layout ----------
@@ -387,39 +428,40 @@
     const t = TYPES[type];
     const speed = baseSpeed(level) * t.speed;
     const a = randomDir();
-    return { type, x, y, r: t.r, speed, base: speed, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, color: BALL_COLORS[i % BALL_COLORS.length], rect, trail: [] };
+    return { type, x, y, r: t.r, speed, base: speed, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+      color: type === 'anti' ? '#e879f9' : ORB_COLORS[i % ORB_COLORS.length], rect, trail: [], phase: Math.random() * 6.28 };
   }
+  const isOrb = (b) => b.type !== 'anti';
   const rectAt = (x, y) => rects.find(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) || null;
   const rectArea = (r) => (r.x1 - r.x0) * (r.y1 - r.y0);
+  // The chamber all the (non-antimatter) orbs share.
+  const groupRect = () => (balls.find(isOrb) || {}).rect || null;
+  const antiInGroup = () => { const g = groupRect(); return balls.some(b => !isOrb(b) && b.rect === g); };
+
   function canPlace(x, y, o) {
     const r = rectAt(x, y);
     if (!r) return null;
-    // Sections holding balls can't be cut thinner than the biggest ball inside them.
+    // Only the orbs' chamber is in play once the shift starts.
+    if (state === 'play' && r !== groupRect()) return null;
+    // A chamber can't be cut thinner than the biggest orb inside it.
     let maxR = 0;
     for (const b of balls) if (b.rect === r) maxR = Math.max(maxR, b.r);
     const gap = Math.max(MIN_GAP + HW, maxR ? 2 * maxR + 2 * HW + 4 : 0);
     if (o === 'v' && (x - r.x0 < gap || r.x1 - x < gap)) return null;
     if (o === 'h' && (y - r.y0 < gap || r.y1 - y < gap)) return null;
-    // Filled-in (empty) sections are out of play.
-    if (!maxR && state === 'play') return null;
     return r;
   }
-  function owners() {
-    const m = new Map();
-    for (const b of balls) { const l = m.get(b.rect) || []; l.push(b); m.set(b.rect, l); }
-    return m;
-  }
-  // Share of the box the balls can still move in.
+  // Share of the lab the orbs can still move in.
   function livePct() {
-    let a = 0;
-    for (const r of owners().keys()) a += rectArea(r);
-    return 100 * a / boxArea;
+    const g = groupRect();
+    return g ? 100 * rectArea(g) / boxArea : 100;
   }
-  const levelGoalText = (c) => `Trap ${c.count} balls together in ${c.target}% of the space or less`;
+  const levelGoalText = (c) => `Contain ${c.count} orbs in ${c.target}% of the lab or less` + (c.hazards ? ` · isolate the antimatter` : '');
 
-  function showToast(text) {
+  function showToast(text, good) {
     const t = $('toast');
     t.textContent = text;
+    t.classList.toggle('good', !!good);
     t.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
@@ -442,11 +484,11 @@
     const box = { x0: PAD, y0: PAD, x1: WORLD_W - PAD, y1: worldH - PAD };
     rects = [box];
     boxArea = rectArea(box);
-    walls = []; growing = null; hitBall = null; particles = []; pulses = [];
+    walls = []; growing = null; hitBall = null; particles = []; pulses = []; stampT = -1;
     wallsUsed = 0; levelTime = 0; paused = false;
     balls = [];
-    // shuffle types so special balls are not always the same colour
     const types = cfg.types.slice().sort(() => Math.random() - 0.5);
+    for (let h = 0; h < cfg.hazards; h++) types.push('anti');
     types.forEach((type, i) => {
       const r = TYPES[type].r;
       let x, y, tries = 0, ok;
@@ -468,7 +510,7 @@
 
   function showFeature(kind) {
     state = 'feature';
-    $('newTitle').textContent = 'New: ' + TYPES[kind].name;
+    $('newTitle').textContent = TYPES[kind].name;
     $('newText').textContent = TYPES[kind].desc;
     drawFeatureIcon(kind);
     ov.newf.hidden = false;
@@ -510,14 +552,16 @@
   function renderGoals() {
     if (state === 'intro') { $('goals').innerHTML = ''; goalsKey = ''; return; }
     const pct = livePct();
-    const key = `${level}|${Math.ceil(pct)}|${wallsUsed}`;
+    const inside = cfg.hazards ? antiInGroup() : false;
+    const key = `${level}|${Math.ceil(pct)}|${wallsUsed}|${inside}`;
     if (key === goalsKey) return;
     goalsKey = key;
     const done = pct <= cfg.target;
-    let html = `<span class="goal ${done ? 'done' : ''}">Ball space: <b>${Math.ceil(pct)}% / ${cfg.target}%</b>
+    let html = `<span class="goal ${done ? 'done' : ''}">Containment <b>${Math.ceil(pct)}% / ${cfg.target}%</b>
       <span class="meter"><i style="width:${Math.min(100, pct)}%"></i><em style="left:${cfg.target}%"></em></span></span>`;
-    html += `<span class="goal">Balls: <b>${cfg.count}</b></span>`;
-    html += `<span class="goal">Walls: <b>${wallsUsed}</b> (par ${cfg.wallPar})</span>`;
+    if (cfg.hazards) html += `<span class="goal ${inside ? 'bad' : 'done'}">Antimatter <b>${inside ? 'inside' : 'isolated ✓'}</b></span>`;
+    html += `<span class="goal">Orbs <b>${cfg.count}</b></span>`;
+    html += `<span class="goal">Fields <b>${wallsUsed}</b> (par ${cfg.wallPar})</span>`;
     $('goals').innerHTML = html;
   }
 
@@ -525,8 +569,8 @@
     el.innerHTML = [
       ['Best score', stats.bestScore],
       ['Best level', stats.bestLevel || '–'],
-      ['Balls confined', stats.totalConfined],
-      ['Perfect levels', stats.perfects],
+      ['Orbs contained', stats.totalConfined],
+      ['Stars earned', stats.stars],
       ['Games played', stats.gamesPlayed],
       ['Tightest squeeze', stats.tightest === null ? '–' : stats.tightest.toFixed(1) + '%'],
     ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
@@ -594,7 +638,7 @@
   $('helpBtn').addEventListener('click', () => {
     if (state === 'play' || state === 'countdown') setPaused(true);
     statRows($('startStats'));
-    $('startBtn').textContent = (state === 'intro') ? 'Play' : (paused ? 'Back to game' : 'Close');
+    $('startBtn').textContent = (state === 'intro') ? 'Start shift' : (paused ? 'Back to game' : 'Close');
     ov.start.hidden = false;
     tutT = 0;
   });
@@ -607,9 +651,9 @@
   $('nextBtn').addEventListener('click', () => startLevel(level + 1));
   $('againBtn').addEventListener('click', newGame);
 
-  if (window.matchMedia('(hover: none)').matches) $('hint').textContent = 'Swipe up/down or left/right to choose the wall direction';
+  if (window.matchMedia('(hover: none)').matches) $('hint').textContent = 'Swipe up/down or left/right to choose the field direction';
 
-  // ---------- Walls ----------
+  // ---------- Force fields ----------
   function placeWall(x, y, o) {
     const r = canPlace(x, y, o);
     if (!r) return;
@@ -621,7 +665,7 @@
       lo: o === 'v' ? r.y0 : r.x0,
       hi: o === 'v' ? r.y1 : r.x1,
     };
-    sfx.place();
+    sfx.charge();
     checkGrowHit();
   }
 
@@ -639,7 +683,7 @@
       if (hitLine || hitDot) {
         growing = null;
         shatter(g, g.a, g.b);
-        loseLife(b, px, py, 'hit');
+        loseLife(b, px, py, 'overload');
         return true;
       }
     }
@@ -648,10 +692,10 @@
 
   function shatter(g, a, b) {
     const len = b - a;
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 22; i++) {
       const t = a + Math.random() * len;
       const [x, y] = g.o === 'v' ? [g.c, t] : [t, g.c];
-      burst(x, y, 1, [colors.grow], 160);
+      burst(x, y, 1, [colors.grow, colors.wall], 180);
     }
   }
 
@@ -667,13 +711,16 @@
       if (score > stats.bestScore) stats.bestScore = score;
       saveStats();
       const newBest = score > 0 && score === stats.bestScore;
-      const why = reason === 'split' ? 'Your last wall split the balls apart. ' : '';
+      const why = reason === 'breach' ? 'The last field split the orbs apart. ' : 'An orb overloaded a charging field. ';
       $('overText').innerHTML = `${why}You reached level ${level} with <b>${score}</b> points.` + (newBest ? ' <span class="record">New best score!</span>' : '');
       statRows($('overStats'));
       setTimeout(() => { if (state === 'over') ov.over.hidden = false; }, 900);
+    } else if (reason === 'breach') {
+      sfx.breach();
+      showToast('Containment breach! The field collapsed.');
     } else {
-      sfx.hit();
-      if (reason === 'split') showToast('Split! The balls must stay together. The wall broke.');
+      sfx.overload();
+      showToast('Field overload!');
     }
   }
 
@@ -691,72 +738,92 @@
       B = { x0: r.x0, y0: g.c, x1: r.x1, y1: r.y1 };
     }
     const inR = balls.filter(b => b.rect === r);
-    const sideA = inR.filter(b => (g.o === 'v' ? b.x : b.y) < g.c);
-    const sideB = inR.filter(b => (g.o === 'v' ? b.x : b.y) >= g.c);
+    const onA = (b) => (g.o === 'v' ? b.x : b.y) < g.c;
+    const orbsA = inR.filter(b => isOrb(b) && onA(b)).length;
+    const orbsB = inR.filter(b => isOrb(b) && !onA(b)).length;
 
-    // The wall would cut the group in two: it breaks and costs a life.
-    if (sideA.length && sideB.length) {
+    // The field would cut the orbs into two groups: breach.
+    if (orbsA && orbsB) {
       shatter(g, g.lo, g.hi);
-      pulses.push({ rect: r, color: colors.danger, t: 0, ball: null });
+      pulses.push({ rect: r, color: colors.danger, t: 0 });
       const mid = g.o === 'v' ? [g.c, (r.y0 + r.y1) / 2] : [(r.x0 + r.x1) / 2, g.c];
-      loseLife(null, mid[0], mid[1], 'split');
+      loseLife(null, mid[0], mid[1], 'breach');
       return;
     }
 
+    const hadAnti = inR.some(b => !isOrb(b));
     walls.push(w);
     rects.splice(rects.indexOf(r), 1, A, B);
-    for (const b of sideA) b.rect = A;
-    for (const b of sideB) b.rect = B;
+    for (const b of inR) b.rect = onA(b) ? A : B;
     wallsUsed++;
-    sfx.snap();
-    for (let i = 0; i < 14; i++) {
+    sfx.seal();
+    for (let i = 0; i < 16; i++) {
       const t = Math.random();
-      burst(w.x0 + (w.x1 - w.x0) * t, w.y0 + (w.y1 - w.y0) * t, 1, [colors.grow], 120);
+      burst(w.x0 + (w.x1 - w.x0) * t, w.y0 + (w.y1 - w.y0) * t, 1, [colors.wall], 120);
     }
-    // the side without balls fills in
-    const emptySide = sideA.length ? B : A;
-    pulses.push({ rect: emptySide, color: colors.frame, t: 0, ball: null });
-    setTimeout(sfx.fill, 60);
+    const otherSide = orbsA ? B : A;
+    const antiOut = balls.some(b => !isOrb(b) && b.rect === otherSide);
+    if (antiOut) {
+      pulses.push({ rect: otherSide, color: colors.anti, t: 0 });
+      if (hadAnti && !antiInGroup()) { setTimeout(sfx.isolate, 80); showToast('Antimatter isolated', true); }
+    } else {
+      pulses.push({ rect: otherSide, color: colors.gold, t: 0 });
+      setTimeout(sfx.vent, 60);
+    }
     updateHud();
-    if (livePct() <= cfg.target) levelCleared();
+    if (livePct() <= cfg.target && !antiInGroup()) levelCleared();
   }
 
   function levelCleared() {
     state = 'cleared';
+    stampT = 0;
     const pct = livePct();
     const confined = 100 * cfg.count;
     const squeeze = Math.max(0, Math.round((cfg.target - pct) * 15));
-    const perfect = wallsUsed <= cfg.wallPar;
-    const wallBonus = perfect ? 50 * cfg.count : Math.max(0, 50 * cfg.count - 20 * (wallsUsed - cfg.wallPar));
+    const parWalls = wallsUsed <= cfg.wallPar;
+    const parTime = levelTime <= cfg.timePar;
+    const starsWon = 1 + (parWalls ? 1 : 0) + (parTime ? 1 : 0);
+    const wallBonus = parWalls ? 50 * cfg.count : Math.max(0, 50 * cfg.count - 20 * (wallsUsed - cfg.wallPar));
     const timeBonus = Math.max(0, Math.round((cfg.timePar - levelTime) * 10));
-    const total = confined + squeeze + wallBonus + timeBonus;
+    const hazardBonus = 150 * cfg.hazards;
+    const total = confined + squeeze + wallBonus + timeBonus + hazardBonus;
     score += total;
 
     stats.totalConfined += cfg.count;
+    stats.stars += starsWon;
     if (level > stats.bestLevel) stats.bestLevel = level;
-    if (perfect) stats.perfects++;
+    if (starsWon === 3) stats.perfects++;
     const prevTight = stats.tightest;
     const tightRecord = prevTight === null || pct < prevTight;
     if (tightRecord) stats.tightest = pct;
     if (score > stats.bestScore) stats.bestScore = score;
     saveStats();
 
-    $('clearTitle').innerHTML = `Level ${level} cleared!` + (perfect ? '<span class="badge">PERFECT</span>' : '');
-    $('clearRows').innerHTML = [
-      [`${cfg.count} balls confined`, confined],
-      [`Space: ${pct.toFixed(1)}% (target ${cfg.target}%)`, squeeze],
-      [`Walls: ${wallsUsed} (par ${cfg.wallPar})`, wallBonus],
-      [`Time: ${levelTime.toFixed(1)}s (par ${cfg.timePar}s)`, timeBonus],
-    ].map(([k, v]) => `<tr><td>${k}</td><td>+${v}</td></tr>`).join('') +
+    $('clearTitle').textContent = `Level ${level} contained`;
+    [...$('clearStars').children].forEach((s, i) => s.classList.remove('on'));
+    const rows = [
+      [`${cfg.count} orbs contained`, confined],
+      [`Chamber: ${pct.toFixed(1)}% (threshold ${cfg.target}%)`, squeeze],
+    ];
+    if (cfg.hazards) rows.push([`Antimatter isolated ×${cfg.hazards}`, hazardBonus]);
+    rows.push([`Fields: ${wallsUsed} (par ${cfg.wallPar})`, wallBonus]);
+    rows.push([`Time: ${levelTime.toFixed(1)}s (par ${cfg.timePar}s)`, timeBonus]);
+    $('clearRows').innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>+${v}</td></tr>`).join('') +
       `<tr class="total"><td>Score</td><td>${score}</td></tr>`;
     const notes = [];
     if (tightRecord && prevTight !== null) notes.push(`<span class="record">New record: tightest squeeze, ${pct.toFixed(1)}% (was ${prevTight.toFixed(1)}%).</span>`);
     notes.push(`Next: ${levelGoalText(levelConfig(level + 1))}.`);
     $('clearRecord').innerHTML = notes.join('<br>');
     sfx.clear();
-    for (const b of balls) burst(b.x, b.y, 8, [b.color], 200);
+    for (const b of balls) if (isOrb(b)) burst(b.x, b.y, 8, [b.color], 200);
     updateHud();
-    setTimeout(() => { if (state === 'cleared') ov.clear.hidden = false; }, 700);
+    setTimeout(() => {
+      if (state !== 'cleared') return;
+      ov.clear.hidden = false;
+      [...$('clearStars').children].forEach((s, i) => {
+        if (i < starsWon) setTimeout(() => { s.classList.add('on'); tone(880 + i * 220, 0.12, 'triangle', 0.05); }, reduceMotion ? 0 : 250 + i * 250);
+      });
+    }, 1100);
   }
 
   // ---------- Physics ----------
@@ -778,7 +845,7 @@
         if (rel < 0) {
           p.vx += 2 * m2 / M * rel * nx; p.vy += 2 * m2 / M * rel * ny;
           q.vx -= 2 * m1 / M * rel * nx; q.vy -= 2 * m1 / M * rel * ny;
-          // each ball keeps its own speed so types stay recognisable
+          // each orb keeps its own speed so types stay recognisable
           for (const b of [p, q]) { const s = Math.hypot(b.vx, b.vy) || 1; b.vx *= b.speed / s; b.vy *= b.speed / s; }
         }
       }
@@ -810,11 +877,13 @@
   }
 
   function updateEffects(dt) {
+    clock += dt;
     for (const p of particles) { p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; }
     particles = particles.filter(p => p.life < p.max);
     for (const q of pulses) q.t += dt;
     pulses = pulses.filter(q => q.t < 0.7);
     shakeT = Math.max(0, shakeT - dt);
+    if (stampT >= 0) stampT += dt;
     if (hitBall) { hitT += dt; if (hitT > 1.2) hitBall = null; }
   }
 
@@ -865,7 +934,11 @@
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   let colors = {};
   function readColors() {
-    colors = { field: css('--field'), frame: css('--frame'), wall: css('--wall'), grow: css('--grow'), danger: css('--danger'), empty: css('--empty'), live: css('--live'), ink: css('--ink'), gold: css('--gold'), accent: css('--accent') };
+    colors = {
+      field: css('--field'), frame: css('--frame'), wall: css('--wall'), grow: css('--grow'), danger: css('--danger'),
+      grid: css('--grid'), live: css('--live'), sealedFill: css('--sealed-fill'), sealed: css('--sealed'),
+      ink: css('--ink'), gold: css('--gold'), accent: css('--accent'), anti: css('--anti'),
+    };
   }
   readColors();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { readColors(); draw(); drawTutorial(); });
@@ -876,46 +949,115 @@
     const n = parseInt(hex.slice(1), 16);
     return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
   }
+  // blend a hex colour toward white-hot (k = 0..1)
+  function heat(hex, k) {
+    const n = parseInt(hex.slice(1), 16);
+    const mix = (v, w) => Math.round(v + (w - v) * k);
+    return `rgb(${mix(n >> 16 & 255, 255)},${mix(n >> 8 & 255, 236)},${mix(n & 255, 200)})`;
+  }
 
-  function drawBall(c, b, x, y, r) {
+  function drawBall(c, b, x, y, r, t) {
     if (b.trail && b.trail.length > 1) {
       for (let i = 0; i < b.trail.length; i++) {
         const [tx, ty] = b.trail[i];
-        c.fillStyle = hexA(b.color, 0.04 + 0.2 * i / b.trail.length);
+        const flick = b.type === 'fast' ? 0.6 + 0.4 * Math.random() : 1;
+        c.fillStyle = hexA(b.color, (0.04 + 0.22 * i / b.trail.length) * flick);
         c.beginPath(); c.arc(tx, ty, r * (0.4 + 0.5 * i / b.trail.length), 0, Math.PI * 2); c.fill();
       }
     }
-    const g = c.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.15, x, y, r);
+    const pulse = 0.5 + 0.5 * Math.sin(t * 5 + (b.phase || 0));
+    c.save();
+    if (b.type === 'anti') {
+      c.shadowColor = colors.anti; c.shadowBlur = r * 1.4;
+      c.fillStyle = '#12021a';
+      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      c.shadowBlur = 0;
+      c.strokeStyle = colors.anti; c.lineWidth = 3;
+      c.beginPath(); c.arc(x, y, r - 1.5, 0, Math.PI * 2); c.stroke();
+      c.lineWidth = 2;
+      c.setLineDash([5, 5]); c.lineDashOffset = -t * 30;
+      c.beginPath(); c.arc(x, y, r + 5, 0, Math.PI * 2); c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = colors.anti;
+      c.beginPath(); c.arc(x, y, r * (0.22 + 0.12 * pulse), 0, Math.PI * 2); c.fill();
+      c.restore();
+      return;
+    }
+    let k = 0, col = b.color;
+    if (b.type === 'accel' && b.base) {
+      k = Math.max(0, Math.min(1, (b.speed / b.base - 1) / (TYPES.accel.max - 1)));
+      col = heat(b.color, k * 0.8);
+    }
+    c.shadowColor = col; c.shadowBlur = r * (0.9 + 0.4 * pulse + 1.6 * k);
+    const g = c.createRadialGradient(x - r * 0.2, y - r * 0.2, 0, x, y, r);
     g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.25, b.color);
-    g.addColorStop(1, hexA(b.color, 0.85));
+    g.addColorStop(0.18 + 0.12 * pulse, '#ffffff');
+    g.addColorStop(0.45, col);
+    g.addColorStop(1, hexA(b.color.startsWith('#') ? b.color : '#22d3ee', 0.55));
     c.fillStyle = g;
     c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+    c.restore();
     if (b.type === 'big') {
-      c.strokeStyle = hexA(colors.ink.startsWith('#') ? colors.ink : '#1f2937', 0.45);
+      c.strokeStyle = hexA(b.color, 0.9);
       c.lineWidth = 3;
       c.beginPath(); c.arc(x, y, r - 1.5, 0, Math.PI * 2); c.stroke();
+      c.lineWidth = 1.5;
+      c.beginPath(); c.arc(x, y, r * 0.62, 0, Math.PI * 2); c.stroke();
     } else if (b.type === 'accel') {
-      const k = Math.min(1, (b.speed / b.base - 1) / (TYPES.accel.max - 1));
-      c.strokeStyle = hexA(colors.gold.startsWith('#') ? colors.gold : '#b45309', 0.5 + 0.5 * k);
+      c.strokeStyle = heat(colors.gold.startsWith('#') ? colors.gold : '#fbbf24', k);
+      c.globalAlpha = 0.5 + 0.5 * k;
       c.lineWidth = 2 + 3 * k;
-      c.setLineDash([4, 4]);
+      c.setLineDash([4, 4]); c.lineDashOffset = -t * (20 + 80 * k);
       c.beginPath(); c.arc(x, y, r + 4, 0, Math.PI * 2); c.stroke();
-      c.setLineDash([]);
+      c.setLineDash([]); c.globalAlpha = 1;
     }
   }
 
-  // diagonal hatching for filled-in sections
-  function hatch(c, r, color) {
+  // hazard stripes for sealed chambers
+  function stripes(c, r, color, gap = 24, width = 8) {
     c.save();
     c.beginPath(); c.rect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); c.clip();
-    c.strokeStyle = color; c.lineWidth = 2;
+    c.strokeStyle = color; c.lineWidth = width;
     c.beginPath();
-    const span = (r.x1 - r.x0) + (r.y1 - r.y0);
-    for (let d = -span; d < span; d += 18) {
-      c.moveTo(r.x0 + d, r.y0); c.lineTo(r.x0 + d + (r.y1 - r.y0), r.y1);
-    }
+    const h = r.y1 - r.y0, span = (r.x1 - r.x0) + h;
+    for (let d = -h; d < span; d += gap) { c.moveTo(r.x0 + d, r.y1); c.lineTo(r.x0 + d + h, r.y0); }
     c.stroke();
+    c.restore();
+  }
+
+  function drawGrid(c, x0, y0, x1, y1, step) {
+    c.strokeStyle = colors.grid; c.lineWidth = 1;
+    c.beginPath();
+    for (let x = x0 + step; x < x1; x += step) { c.moveTo(x, y0); c.lineTo(x, y1); }
+    for (let y = y0 + step; y < y1; y += step) { c.moveTo(x0, y); c.lineTo(x1, y); }
+    c.stroke();
+  }
+
+  function beam(c, x0, y0, x1, y1, color, width) {
+    c.save();
+    c.lineCap = 'round';
+    c.shadowColor = color; c.shadowBlur = 14;
+    c.strokeStyle = color; c.lineWidth = width;
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    c.shadowBlur = 0;
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = Math.max(1, width * 0.3);
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    c.restore();
+  }
+
+  function crackle(c, x0, y0, x1, y1, color) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len < 4) return;
+    const nx = -(y1 - y0) / len, ny = (x1 - x0) / len;
+    const n = Math.max(2, Math.floor(len / 14));
+    c.save();
+    c.strokeStyle = color; c.globalAlpha = 0.7; c.lineWidth = 1.3;
+    c.beginPath(); c.moveTo(x0, y0);
+    for (let i = 1; i < n; i++) {
+      const t = i / n, o = (Math.random() - 0.5) * 10;
+      c.lineTo(x0 + (x1 - x0) * t + nx * o, y0 + (y1 - y0) * t + ny * o);
+    }
+    c.lineTo(x1, y1); c.stroke();
     c.restore();
   }
 
@@ -927,17 +1069,24 @@
     }
     ctx.fillStyle = colors.field;
     ctx.fillRect(-20, -20, WORLD_W + 40, worldH + 40);
+    drawGrid(ctx, PAD, PAD, WORLD_W - PAD, worldH - PAD, GRID);
 
+    const gr = groupRect();
     if (state !== 'intro') {
-      const m = owners();
       for (const r of rects) {
-        if (m.has(r)) {
-          ctx.fillStyle = state === 'cleared' ? hexA(colors.accent, 0.16) : colors.live;
+        const hasOrb = r === gr;
+        const hasAnti = balls.some(b => !isOrb(b) && b.rect === r);
+        if (hasOrb) {
+          ctx.fillStyle = state === 'cleared' ? hexA(colors.accent, 0.12) : colors.live;
           ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+        } else if (hasAnti) {
+          ctx.fillStyle = hexA(colors.anti, 0.07);
+          ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+          stripes(ctx, r, hexA(colors.anti, 0.16));
         } else {
-          ctx.fillStyle = colors.empty;
+          ctx.fillStyle = colors.sealedFill;
           ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
-          hatch(ctx, r, colors.empty);
+          stripes(ctx, r, colors.sealed);
         }
       }
       for (const q of pulses) {
@@ -948,14 +1097,12 @@
       }
     }
 
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = colors.wall;
-    ctx.lineWidth = HW * 2;
-    ctx.beginPath();
-    for (const w of walls) { ctx.moveTo(w.x0, w.y0); ctx.lineTo(w.x1, w.y1); }
-    ctx.stroke();
-    ctx.strokeStyle = colors.frame;
+    for (const w of walls) beam(ctx, w.x0, w.y0, w.x1, w.y1, colors.wall, HW * 2);
+    ctx.save();
+    ctx.shadowColor = colors.frame; ctx.shadowBlur = 6;
+    ctx.strokeStyle = colors.frame; ctx.lineWidth = 4;
     ctx.strokeRect(PAD, PAD, WORLD_W - 2 * PAD, worldH - 2 * PAD);
+    ctx.restore();
 
     // preview: while pressing (swipe aim) or hovering with a mouse
     if (state === 'play' && !paused && !growing) {
@@ -964,8 +1111,8 @@
       const r = p && canPlace(p.x, p.y, o);
       if (r) {
         ctx.save();
-        ctx.setLineDash([8, 8]);
-        ctx.strokeStyle = hexA(colors.grow, press ? 0.8 : 0.45);
+        ctx.setLineDash([8, 8]); ctx.lineDashOffset = -clock * 40;
+        ctx.strokeStyle = hexA(colors.grow, press ? 0.85 : 0.5);
         ctx.lineWidth = 2;
         ctx.beginPath();
         if (o === 'v') { ctx.moveTo(p.x, r.y0); ctx.lineTo(p.x, r.y1); }
@@ -977,19 +1124,20 @@
 
     if (growing) {
       const g = growing;
-      ctx.strokeStyle = colors.grow;
-      ctx.lineWidth = HW * 2;
-      ctx.beginPath();
-      if (g.o === 'v') { ctx.moveTo(g.c, g.a); ctx.lineTo(g.c, g.b); }
-      else { ctx.moveTo(g.a, g.c); ctx.lineTo(g.b, g.c); }
-      ctx.stroke();
-      ctx.fillStyle = colors.grow;
-      const pts = g.o === 'v' ? [[g.c, g.a], [g.c, g.b]] : [[g.a, g.c], [g.b, g.c]];
-      for (const [x, y] of pts) { ctx.beginPath(); ctx.arc(x, y, DOT_R, 0, Math.PI * 2); ctx.fill(); }
+      const [x0, y0, x1, y1] = g.o === 'v' ? [g.c, g.a, g.c, g.b] : [g.a, g.c, g.b, g.c];
+      ctx.save();
+      ctx.globalAlpha = 0.75 + 0.25 * Math.random();
+      beam(ctx, x0, y0, x1, y1, colors.grow, HW * 2);
+      ctx.restore();
+      crackle(ctx, x0, y0, x1, y1, colors.grow);
+      ctx.save();
+      ctx.fillStyle = colors.grow; ctx.shadowColor = colors.grow; ctx.shadowBlur = 16;
+      for (const [x, y] of [[x0, y0], [x1, y1]]) { ctx.beginPath(); ctx.arc(x, y, DOT_R, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
     }
 
     for (const b of balls) {
-      drawBall(ctx, b, b.x, b.y, b.r);
+      drawBall(ctx, b, b.x, b.y, b.r, clock);
       if (b === hitBall) {
         ctx.strokeStyle = hexA(colors.danger, 1 - hitT / 1.2);
         ctx.lineWidth = 3;
@@ -1000,6 +1148,26 @@
     for (const p of particles) {
       ctx.fillStyle = hexA(p.color, 1 - p.life / p.max);
       ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // CONTAINED stamp over the orbs' chamber
+    if (stampT >= 0 && gr) {
+      const k = Math.min(1, stampT / 0.25);
+      const s = reduceMotion ? 1 : 1.6 - 0.6 * k;
+      const cx = (gr.x0 + gr.x1) / 2, cy = (gr.y0 + gr.y1) / 2;
+      const size = Math.max(26, Math.min(64, (gr.x1 - gr.x0) / 6.5));
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(-0.12); ctx.scale(s, s);
+      ctx.globalAlpha = Math.min(1, k * 1.2);
+      ctx.font = `700 ${size}px ${css('--display')}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const wTxt = ctx.measureText('CONTAINED').width;
+      ctx.strokeStyle = colors.accent; ctx.lineWidth = 4;
+      ctx.shadowColor = colors.accent; ctx.shadowBlur = 16;
+      ctx.strokeRect(-wTxt / 2 - 14, -size * 0.75, wTxt + 28, size * 1.5);
+      ctx.fillStyle = colors.accent;
+      ctx.fillText('CONTAINED', 0, 2);
+      ctx.restore();
     }
   }
 
@@ -1016,38 +1184,33 @@
     const T = 6;
     const t = tutT % T;
     const x0 = 6, y0 = 6, x1 = TW - 6, y1 = TH - 6;
-    const wx = 190, wy = 112;           // the two walls in the demo
+    const wx = 190, wy = 112;
     c.fillStyle = colors.field; c.fillRect(0, 0, TW, TH);
+    drawGrid(c, x0, y0, x1, y1, 20);
     const tri = (v, lo, hi) => { const span = hi - lo; const m = ((v % (2 * span)) + 2 * span) % (2 * span); return lo + (m < span ? m : 2 * span - m); };
-    // balls stay in the top-left corner the walls will leave them
-    const A = { x: tri(tutT * 55 + 20, 20, wx - 16), y: tri(tutT * 60, 20, wy - 16), color: BALL_COLORS[0], type: 'normal' };
-    const B = { x: tri(tutT * 47 + 90, 20, wx - 16), y: tri(tutT * 52 + 50, 20, wy - 16), color: BALL_COLORS[1], type: 'normal' };
+    const A = { x: tri(tutT * 55 + 20, 20, wx - 16), y: tri(tutT * 60, 20, wy - 16), color: ORB_COLORS[0], type: 'normal', phase: 0 };
+    const B = { x: tri(tutT * 47 + 90, 20, wx - 16), y: tri(tutT * 52 + 50, 20, wy - 16), color: ORB_COLORS[1], type: 'normal', phase: 2 };
     const wall1Done = t >= 1.9, wall2Done = t >= 3.9;
-    const fillEmpty = (r) => { c.fillStyle = colors.empty; c.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); hatch(c, r, colors.empty); };
-    if (wall1Done) fillEmpty({ x0: wx, y0: y0, x1: x1, y1: y1 });
+    const seal = (r) => { c.fillStyle = colors.sealedFill; c.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); stripes(c, r, colors.sealed, 12, 4); };
+    if (wall1Done) seal({ x0: wx, y0: y0, x1: x1, y1: y1 });
     if (wall2Done) {
-      fillEmpty({ x0: x0, y0: wy, x1: wx, y1: y1 });
-      c.fillStyle = hexA(colors.accent, 0.16); c.fillRect(x0, y0, wx - x0, wy - y0);
+      seal({ x0: x0, y0: wy, x1: wx, y1: y1 });
+      c.fillStyle = hexA(colors.accent, 0.14); c.fillRect(x0, y0, wx - x0, wy - y0);
     }
     c.strokeStyle = colors.frame; c.lineWidth = 3; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
     const growWall = (start, done, o) => {
       if (t < start) return;
       const k = Math.min(1, (t - start) / 1.0);
       const fin = t >= done;
-      c.strokeStyle = fin ? colors.wall : colors.grow; c.lineWidth = 3;
-      c.beginPath();
       let e1, e2;
-      if (o === 'v') {
-        const half = (TH / 2 - y0) * k, cy = TH / 2;
-        e1 = [wx, cy - half]; e2 = [wx, cy + half];
-      } else {
-        const cx = (x0 + wx) / 2, half = (wx - x0) / 2 * k;
-        e1 = [cx - half, wy]; e2 = [cx + half, wy];
-      }
-      c.moveTo(...e1); c.lineTo(...e2); c.stroke();
+      if (o === 'v') { const half = (TH / 2 - y0) * k, cy = TH / 2; e1 = [wx, cy - half]; e2 = [wx, cy + half]; }
+      else { const cx = (x0 + wx) / 2, half = (wx - x0) / 2 * k; e1 = [cx - half, wy]; e2 = [cx + half, wy]; }
+      beam(c, e1[0], e1[1], e2[0], e2[1], fin ? colors.wall : colors.grow, 3);
       if (!fin) {
-        c.fillStyle = colors.grow;
+        crackle(c, e1[0], e1[1], e2[0], e2[1], colors.grow);
+        c.save(); c.fillStyle = colors.grow; c.shadowColor = colors.grow; c.shadowBlur = 10;
         for (const [x, y] of [e1, e2]) { c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill(); }
+        c.restore();
       }
     };
     growWall(0.9, 1.9, 'v');
@@ -1055,20 +1218,20 @@
     const tapRing = (start, x, y) => {
       if (t >= start && t < start + 0.9) {
         const k = (t - start) / 0.9;
-        c.strokeStyle = hexA(colors.ink.startsWith('#') ? colors.ink : '#1f2937', 0.6 * (1 - k));
+        c.strokeStyle = hexA(colors.ink.startsWith('#') ? colors.ink : '#e2ecf7', 0.6 * (1 - k));
         c.lineWidth = 2;
         c.beginPath(); c.arc(x, y, 6 + 22 * k, 0, Math.PI * 2); c.stroke();
       }
     };
     tapRing(0.4, wx, TH / 2);
     tapRing(2.4, (x0 + wx) / 2, wy);
-    drawBall(c, A, A.x, A.y, 9);
-    drawBall(c, B, B.x, B.y, 9);
+    drawBall(c, A, A.x, A.y, 9, tutT);
+    drawBall(c, B, B.x, B.y, 9, tutT);
     let caption;
-    if (t < 0.9) caption = 'Tap beside the balls, not between them';
-    else if (t < 2.4) caption = 'The empty side gets filled in';
-    else if (t < 3.9) caption = 'Keep squeezing them together…';
-    else caption = 'Small enough? Level cleared ✓';
+    if (t < 0.9) caption = 'Tap beside the orbs, not between them';
+    else if (t < 2.4) caption = 'The empty chamber gets sealed';
+    else if (t < 3.9) caption = 'Keep closing in…';
+    else caption = 'Under the threshold: contained ✓';
     $('tutCaption').textContent = caption;
   }
 
@@ -1077,9 +1240,10 @@
     c.setTransform(2, 0, 0, 2, 0, 0);
     c.clearRect(0, 0, 64, 64);
     const t = TYPES[kind];
-    const b = { color: BALL_COLORS[kind === 'fast' ? 0 : kind === 'big' ? 3 : 2], type: kind, speed: kind === 'accel' ? 1.6 : 1, base: 1,
+    const b = { color: kind === 'anti' ? '#e879f9' : ORB_COLORS[kind === 'fast' ? 0 : kind === 'big' ? 4 : 2], type: kind,
+      speed: kind === 'accel' ? 1.6 : 1, base: 1, phase: 0,
       trail: kind === 'fast' ? Array.from({ length: 8 }, (_, i) => [10 + i * 3.5, 44 - i * 1.6]) : null };
-    drawBall(c, b, 40, 30, t.r * 1.1);
+    drawBall(c, b, 38, 32, t.r * 1.05, 0.3);
   }
 
   // ---------- Loop ----------
@@ -1105,7 +1269,7 @@
 
   if (/[?&]debug\b/.test(location.search)) {
     window.__bc = { get balls() { return balls; }, get rects() { return rects; }, get state() { return state; }, get lives() { return lives; },
-      placeWall, livePct, get growing() { return growing; } };
+      placeWall, livePct, antiInGroup, startLevel, get growing() { return growing; } };
   }
 
   window.addEventListener('resize', resize);
