@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Ball Confine</title>
 <meta name="description" content="Lab containment arcade: charge force fields to trap the bouncing energy orbs in one small chamber, and keep the antimatter out.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -69,8 +69,8 @@
     background: var(--bg);
     color: var(--ink);
     display: flex; flex-direction: column; align-items: center;
-    overflow: hidden;
-    -webkit-user-select: none; user-select: none;
+    overflow: hidden; overscroll-behavior: none; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
   }
   header {
@@ -90,9 +90,9 @@
   .controls { display: flex; gap: 6px; }
   button {
     font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-    border-radius: 8px; padding: 6px 11px; cursor: pointer; min-height: 36px; min-width: 36px;
+    border-radius: 8px; padding: 6px 11px; min-height: 44px; min-width: 44px;
   }
-  button:hover { border-color: var(--wall); }
+  button:active { border-color: var(--wall); transform: scale(.96); }
   button:focus-visible { outline: 2px solid var(--wall); outline-offset: 2px; }
   button.primary {
     font-family: var(--display); text-transform: uppercase; letter-spacing: .08em;
@@ -128,7 +128,7 @@
     min-height: 0; position: relative;
   }
   #wrap { position: relative; }
-  canvas#game { display: block; border-radius: 6px; box-shadow: var(--shadow); touch-action: none; cursor: crosshair; }
+  canvas#game { display: block; border-radius: 6px; box-shadow: var(--shadow); touch-action: none; }
   .overlay {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -189,6 +189,10 @@
     .btnLabel { display: none; }
     .card { padding: 18px; }
     #toast { white-space: normal; text-align: center; width: max-content; max-width: 90%; }
+    .goals { font-size: .7rem; gap: 4px 12px; letter-spacing: .04em; }
+    .goal.opt { display: none; }
+    .meter { width: 64px; }
+    .hint { font-size: .72rem; padding-block: 0 6px; }
   }
   @media (prefers-reduced-motion: reduce) { .stars span { transition: none; } }
 </style>
@@ -202,10 +206,10 @@
     <div class="stat"><span>Lives</span><b id="livesVal">♥♥♥</b></div>
   </div>
   <div class="controls">
-    <button id="orientBtn" title="Field direction (Space / right-click / swipe)"><i id="orientIcon" class="v"></i><span class="btnLabel" id="orientLabel">Vertical</span></button>
-    <button id="pauseBtn" title="Pause (P)">❚❚</button>
-    <button id="soundBtn" title="Sound">🔊</button>
-    <button id="helpBtn" title="How to play">?</button>
+    <button id="orientBtn" aria-label="Switch field direction"><i id="orientIcon" class="v"></i><span class="btnLabel" id="orientLabel">Vertical</span></button>
+    <button id="pauseBtn" aria-label="Pause">❚❚</button>
+    <button id="soundBtn" aria-label="Sound">🔊</button>
+    <button id="helpBtn" aria-label="How to play">?</button>
   </div>
 </header>
 <div class="goals" id="goals"></div>
@@ -224,7 +228,7 @@
         <p id="tutCaption">Tap beside the orbs</p>
         <ul>
           <li>Tap to charge a force field. Two emitters race out from that point until they reach the walls.</li>
-          <li>Swipe up/down or left/right to pick the field's direction, or use the button, <kbd>Space</kbd>, or right-click.</li>
+          <li>Swipe up/down or left/right as you tap to pick the field's direction, or use the direction button at the top.</li>
           <li>Chambers with no orbs get sealed. Shrink the orbs' chamber below the containment threshold to clear the level.</li>
           <li>Keep the orbs together. A field that splits them is a <b>containment breach</b>, and an orb hitting a field that is still charging overloads it. Either costs a life. You have 3.</li>
           <li>From level 4, antimatter shows up. Wall it off on its own; it can't be in the orbs' chamber when you finish.</li>
@@ -288,7 +292,7 @@
     </div>
   </div>
 </div>
-<div class="hint" id="hint">Swipe or press Space to switch field direction · P to pause</div>
+<div class="hint" id="hint">Swipe up/down or left/right to choose the field direction</div>
 
 <script>
 (() => {
@@ -362,7 +366,7 @@
   let balls = [], rects = [], walls = [];
   let growing = null;
   let wallsUsed = 0;
-  let hover = null, press = null;
+  let press = null;
   let particles = [], pulses = [];
   let shakeT = 0, hitBall = null, hitT = 0, stampT = -1;
   let boxArea = 1;
@@ -560,7 +564,7 @@
     let html = `<span class="goal ${done ? 'done' : ''}">Containment <b>${Math.ceil(pct)}% / ${cfg.target}%</b>
       <span class="meter"><i style="width:${Math.min(100, pct)}%"></i><em style="left:${cfg.target}%"></em></span></span>`;
     if (cfg.hazards) html += `<span class="goal ${inside ? 'bad' : 'done'}">Antimatter <b>${inside ? 'inside' : 'isolated ✓'}</b></span>`;
-    html += `<span class="goal">Orbs <b>${cfg.count}</b></span>`;
+    html += `<span class="goal opt">Orbs <b>${cfg.count}</b></span>`;
     html += `<span class="goal">Fields <b>${wallsUsed}</b> (par ${cfg.wallPar})</span>`;
     $('goals').innerHTML = html;
   }
@@ -589,7 +593,6 @@
   }
 
   canvas.addEventListener('pointerdown', (e) => {
-    if (e.button === 2) return;
     e.preventDefault();
     if (state !== 'play' || paused || growing) return;
     const p = toWorld(e);
@@ -597,7 +600,6 @@
     try { canvas.setPointerCapture(e.pointerId); } catch {}
   });
   canvas.addEventListener('pointermove', (e) => {
-    hover = e.pointerType === 'mouse' ? toWorld(e) : null;
     if (press && e.pointerId === press.id) press.o = dragOrient(e);
   });
   canvas.addEventListener('pointerup', (e) => {
@@ -609,23 +611,10 @@
     if (state === 'play' && !paused && !growing) placeWall(x, y, orient);
   });
   canvas.addEventListener('pointercancel', () => { press = null; });
-  canvas.addEventListener('pointerleave', () => { hover = null; });
-  canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleOrient(); });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   function toggleOrient() { orient = orient === 'v' ? 'h' : 'v'; updateHud(); }
 
-  window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') { e.preventDefault(); toggleOrient(); }
-    else if (e.code === 'KeyP' || e.code === 'Escape') {
-      if (state === 'play' || state === 'countdown') setPaused(!paused);
-    } else if (e.code === 'Enter') {
-      if (paused) setPaused(false);
-      else if (state === 'intro') { e.preventDefault(); $('startBtn').click(); }
-      else if (state === 'feature') beginCountdownFromFeature();
-      else if (state === 'cleared' && !ov.clear.hidden) startLevel(level + 1);
-      else if (state === 'over' && !ov.over.hidden) newGame();
-    }
-  });
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
   function beginCountdownFromFeature() { ov.newf.hidden = true; beginCountdown(); }
@@ -651,7 +640,6 @@
   $('nextBtn').addEventListener('click', () => startLevel(level + 1));
   $('againBtn').addEventListener('click', newGame);
 
-  if (window.matchMedia('(hover: none)').matches) $('hint').textContent = 'Swipe up/down or left/right to choose the field direction';
 
   // ---------- Force fields ----------
   function placeWall(x, y, o) {
@@ -1104,9 +1092,9 @@
     ctx.strokeRect(PAD, PAD, WORLD_W - 2 * PAD, worldH - 2 * PAD);
     ctx.restore();
 
-    // preview: while pressing (swipe aim) or hovering with a mouse
+    // preview while the finger is down (shows the swipe-aimed direction)
     if (state === 'play' && !paused && !growing) {
-      const p = press || hover;
+      const p = press;
       const o = press ? (press.o || orient) : orient;
       const r = p && canPlace(p.x, p.y, o);
       if (r) {
@@ -1273,6 +1261,8 @@
   }
 
   window.addEventListener('resize', resize);
+  // the readout strip changes height as it fills in; refit the canvas to the space left
+  if (window.ResizeObserver) { let rw = 0, rh = 0; new ResizeObserver(() => { if (stage.clientWidth !== rw || stage.clientHeight !== rh) { rw = stage.clientWidth; rh = stage.clientHeight; resize(); } }).observe(stage); }
   intro();
   requestAnimationFrame(frame);
 })();
