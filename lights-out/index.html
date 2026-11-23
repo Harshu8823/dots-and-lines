@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
 <title>Lights Out</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lights Out">
 <meta name="description" content="A reaction-time racing game. Five red lights, then lights out — beat the world's best starters across a full season.">
 <style>
   :root {
@@ -48,6 +55,8 @@
   .top-actions { display: flex; gap: 8px; }
   .icon-btn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 7px 11px; font-size: 13px; cursor: pointer; }
   .icon-btn:hover { border-color: #3a4352; }
+  .brand { white-space: nowrap; }
+  @media (max-width: 420px) { .brand { letter-spacing: .08em; font-size: 14px; gap: 8px; } .top-actions { gap: 6px; } .icon-btn { padding: 7px 9px; } }
 
   main { flex: 1; padding: 20px 0 32px; }
   .screen { display: none; animation: fade .25s ease; }
@@ -211,6 +220,27 @@
   .duel-side { display: flex; flex-direction: column; gap: 6px; }
   .duel-side .icon-btn { font-size: 12px; }
 
+  /* Launch replay */
+  .replay { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 10px; }
+  .lane { display: grid; grid-template-columns: 74px 1fr 50px; align-items: center; gap: 8px; font-size: 13px; }
+  .lane .ln { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lane.me .ln { color: var(--red); }
+  .lane .lt { text-align: right; color: var(--muted); }
+  .track { position: relative; height: 14px; border-radius: 7px; overflow: hidden; background: repeating-linear-gradient(90deg, #1c2129 0 12px, #161a20 12px 24px); }
+  .track::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 6px; opacity: .55; background: repeating-linear-gradient(0deg, #fff 0 3px, #000 3px 6px); }
+  .car { position: absolute; left: 0; top: 1px; width: 24px; height: 12px; border-radius: 7px 3px 3px 7px; background: var(--c); box-shadow: 0 0 8px var(--c); transition: left 1.5s cubic-bezier(.6, 0, .9, .7); transition-delay: var(--d); }
+  .replay.go .car { left: calc(100% - 30px); }
+  .replay.go .car.dq { left: 0; }
+  .car.dq { opacity: .3; }
+  .replay.reset .car { transition: none; }
+  .confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+
+  /* Friends mode */
+  .pt-row { display: flex; gap: 8px; align-items: center; }
+  .pt-row .swatch { height: 40px; width: 8px; }
+  .pt-row input { flex: 1; min-width: 0; }
+  .pt-name { font-weight: 900; }
+
   footer.foot { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0 20px; border-top: 1px solid var(--line); }
 </style>
 </head>
@@ -219,6 +249,7 @@
   <header class="top">
     <button class="brand" id="brand" aria-label="Home"><span class="dots"><i></i><i></i><i></i><i></i><i></i></span>Lights Out</button>
     <div class="top-actions">
+      <button class="icon-btn" id="btn-haptic" aria-label="Toggle vibration" hidden>📳</button>
       <button class="icon-btn" id="btn-sound" aria-label="Toggle sound">🔊</button>
       <button class="icon-btn" id="btn-standings" hidden>Standings</button>
     </div>
@@ -237,7 +268,11 @@
         <button class="btn primary block" id="btn-continue" hidden>Continue season</button>
         <button class="btn block" id="btn-new">New season</button>
         <button class="btn block" id="btn-practice">Practice starts</button>
-        <button class="btn block" id="btn-duel">Head-to-head · 2 players</button>
+        <div class="row">
+          <button class="btn grow" id="btn-duel">Head-to-head</button>
+          <button class="btn grow" id="btn-party">Friends · pass &amp; play</button>
+        </div>
+        <button class="btn block" id="btn-install" hidden>⬇ Install app</button>
       </div>
       <div class="home-note" id="home-cal-note"></div>
       <div class="stat-strip">
@@ -333,6 +368,10 @@
           <div class="big-stat"><small>Reaction</small><b class="num" id="rs-time"></b><span id="rs-time-note"></span></div>
           <div class="big-stat"><small>Finished</small><b class="num" id="rs-pos"></b><span class="hint" id="rs-pts"></span></div>
         </div>
+        <div class="card">
+          <div class="eyebrow">Launch replay · slowed down 8×</div>
+          <div id="rs-replay"></div>
+        </div>
         <div class="card" style="padding:8px 10px">
           <table class="cls">
             <thead><tr><th>Pos</th><th>Driver</th><th class="r">Reaction</th><th class="r hide-sm">Gap</th><th class="r">Pts</th></tr></thead>
@@ -379,6 +418,99 @@
           <button class="btn primary grow" id="btn-cal-start">Start calibration</button>
         </div>
         <button class="btn block" id="btn-cal-reset" style="font-size:13px;padding:10px">Reset to no correction</button>
+      </div>
+    </section>
+
+    <!-- DUEL SETUP -->
+    <section class="screen" id="screen-duel-setup">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">Head-to-head</div>
+          <h2 style="font-size:28px;margin-top:4px">Two players, one screen</h2>
+          <p class="lede" style="margin-bottom:0">Lay the phone flat between you. Each player taps their own half. On a computer, Player 1 uses <b>A</b> and Player 2 uses <b>L</b>.</p>
+        </div>
+        <div class="card stack">
+          <div class="row">
+            <label class="field grow"><span style="color:#ff2a1f">Player 1</span><input type="text" id="in-d1" maxlength="14" autocomplete="off"></label>
+            <label class="field grow"><span style="color:#3b82f6">Player 2</span><input type="text" id="in-d2" maxlength="14" autocomplete="off"></label>
+          </div>
+          <div class="field">Match length
+            <div class="seg" id="seg-bestof">
+              <button data-v="3">Best of 3</button>
+              <button data-v="5">Best of 5</button>
+              <button data-v="7">Best of 7</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-ds-back">Back</button>
+          <button class="btn primary grow" id="btn-ds-go">Start duel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FRIENDS SETUP -->
+    <section class="screen" id="screen-party-setup">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">Friends mode</div>
+          <h2 style="font-size:28px;margin-top:4px">Pass &amp; play</h2>
+          <p class="lede" style="margin-bottom:0">2–8 players share one phone and take turns. Everyone gets exactly the same lights each round, so it's a fair fight.</p>
+        </div>
+        <div class="card stack">
+          <div class="field">Players
+            <div class="stack" id="pt-list" style="gap:8px"></div>
+          </div>
+          <button class="btn" id="btn-pt-add">+ Add player</button>
+          <div class="field">Rounds
+            <div class="seg" id="seg-pt-rounds">
+              <button data-v="3">3</button>
+              <button data-v="5">5</button>
+              <button data-v="10">10</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-pt-back">Back</button>
+          <button class="btn primary grow" id="btn-pt-go">Start</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FRIENDS TURN -->
+    <section class="screen" id="screen-party">
+      <div class="start-stage" id="pt-stage">
+        <div class="start-meta">
+          <div class="eyebrow" id="pt-eyebrow"></div>
+          <h2 id="pt-title"></h2>
+        </div>
+        <div class="gantry" id="pt-gantry"></div>
+        <div class="start-msg" id="pt-msg"></div>
+        <div class="start-after" id="pt-after"></div>
+      </div>
+    </section>
+
+    <!-- FRIENDS ROUND RESULTS -->
+    <section class="screen" id="screen-party-round">
+      <div class="stack">
+        <div>
+          <div class="eyebrow" id="ptr-sub"></div>
+          <h2 style="font-size:28px;margin-top:4px" id="ptr-head"></h2>
+        </div>
+        <div class="card" id="ptr-replay-card">
+          <div class="eyebrow">Launch replay · slowed down 8×</div>
+          <div id="ptr-replay"></div>
+        </div>
+        <div class="card" style="padding:8px 10px">
+          <table class="cls">
+            <thead><tr><th>Pos</th><th>Player</th><th class="r" id="ptr-col-round">This round</th><th class="r hide-sm">Best</th><th class="r">Pts</th></tr></thead>
+            <tbody id="ptr-table"></tbody>
+          </table>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-ptr-quit">Quit</button>
+          <button class="btn primary grow" id="btn-ptr-next"></button>
+        </div>
       </div>
     </section>
 
@@ -504,6 +636,9 @@
   const KEY = 'lightsout.v1';
   const defaults = () => ({
     sound: true,
+    haptics: true,
+    duel: { names: ['Player 1', 'Player 2'], bestOf: 5 },
+    party: { names: ['Player 1', 'Player 2', 'Player 3'], rounds: 5 },
     latency: 0,        // measured device lag in ms, subtracted from every reaction
     calibrated: false,
     profile: { name: '', code: '', team: 'vortex', diff: 'pro', len: 24 },
@@ -542,6 +677,127 @@
     } catch (e) {}
   }
   function unlockAudio() { if (store.sound && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function audio() {
+    if (!store.sound) return null;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      return actx;
+    } catch (e) { return null; }
+  }
+
+  // Synthesised engine. It revs up with each red light and holds steady until YOU launch,
+  // so the sound never gives away the moment the lights go out.
+  const engine = (() => {
+    let n = null;
+    function stop() {
+      if (!n) return;
+      const t = n.c.currentTime;
+      n.g.gain.cancelScheduledValues(t);
+      n.g.gain.setTargetAtTime(0, t, 0.05);
+      n.oscs.forEach((o) => o.stop(t + 0.3));
+      n = null;
+    }
+    function start() {
+      stop();
+      const c = audio(); if (!c) return;
+      const t = c.currentTime;
+      const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.5);
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 5;
+      const o1 = c.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 40;
+      const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = 20.4;
+      const lfo = c.createOscillator(); lfo.frequency.value = 8;
+      const lg = c.createGain(); lg.gain.value = 0.025;
+      lfo.connect(lg).connect(g.gain);
+      o1.connect(f); o2.connect(f); f.connect(g).connect(c.destination);
+      [o1, o2, lfo].forEach((o) => o.start(t));
+      n = { c, g, f, o1, o2, lfo, oscs: [o1, o2, lfo] };
+    }
+    function rev(level) { // 0 = idle … 5 = full revs
+      if (!n) return;
+      const t = n.c.currentTime, hz = 40 + level * 20;
+      n.o1.frequency.setTargetAtTime(hz, t, 0.15);
+      n.o2.frequency.setTargetAtTime(hz / 2 + 0.4, t, 0.15);
+      n.f.frequency.setTargetAtTime(600 + level * 280, t, 0.2);
+      n.lfo.frequency.setTargetAtTime(8 + level * 3, t, 0.2);
+    }
+    function wheelspin(c, t) {
+      const len = Math.floor(c.sampleRate * 0.7);
+      const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource(); src.buffer = buf;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
+      const g = c.createGain(); g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+      src.connect(bp).connect(g).connect(c.destination);
+      src.start(t);
+    }
+    function launch() {
+      if (!n) return;
+      const { c, g, f, o1, o2, oscs } = n, t = c.currentTime;
+      [o1.frequency, o2.frequency, f.frequency, g.gain].forEach((pm) => { pm.cancelScheduledValues(t); pm.setValueAtTime(pm.value, t); });
+      o1.frequency.exponentialRampToValueAtTime(240, t + 1.0);
+      o2.frequency.exponentialRampToValueAtTime(120, t + 1.0);
+      f.frequency.exponentialRampToValueAtTime(3200, t + 0.4);
+      g.gain.linearRampToValueAtTime(0.1, t + 0.1);
+      g.gain.setTargetAtTime(0, t + 0.6, 0.25);
+      wheelspin(c, t);
+      oscs.forEach((o) => o.stop(t + 2));
+      n = null;
+    }
+    function stall() {
+      if (!n) return;
+      const { c, g, o1, o2, oscs } = n, t = c.currentTime;
+      [o1.frequency, o2.frequency, g.gain].forEach((pm) => { pm.cancelScheduledValues(t); pm.setValueAtTime(pm.value, t); });
+      o1.frequency.exponentialRampToValueAtTime(12, t + 0.6);
+      o2.frequency.exponentialRampToValueAtTime(6, t + 0.6);
+      g.gain.linearRampToValueAtTime(0, t + 0.6);
+      oscs.forEach((o) => o.stop(t + 0.7));
+      n = null;
+      beep(180, 0.35, 0.16);
+    }
+    return { start, rev, launch, stall, stop };
+  })();
+
+  const canVibrate = 'vibrate' in navigator;
+  function buzz(pattern) { if (store.haptics && canVibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
+
+  const reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function confetti(gold) {
+    if (reducedMotion) return;
+    const c = document.createElement('canvas'); c.className = 'confetti'; document.body.append(c);
+    const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
+    c.width = W * dpr; c.height = H * dpr;
+    const x = c.getContext('2d'); x.scale(dpr, dpr);
+    const cols = gold ? ['#f5c542', '#ffe9a3', '#ffd25e', '#ffffff'] : ['#ff2a1f', '#f5c542', '#3b82f6', '#22c55e', '#ffffff'];
+    const ps = Array.from({ length: 150 }, () => ({
+      x: W / 2 + (Math.random() - 0.5) * 120, y: H * 0.35,
+      vx: (Math.random() - 0.5) * 13, vy: -Math.random() * 14 - 4,
+      r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
+      w: 6 + Math.random() * 6, h: 3 + Math.random() * 4, c: cols[Math.floor(Math.random() * cols.length)],
+    }));
+    const t0 = performance.now(), LIFE = 2800;
+    (function frame(now) {
+      const age = now - t0;
+      x.clearRect(0, 0, W, H);
+      x.globalAlpha = Math.max(0, 1 - age / LIFE);
+      ps.forEach((p) => {
+        p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); x.restore();
+      });
+      if (age < LIFE) requestAnimationFrame(frame); else c.remove();
+    })(t0);
+  }
+
+  // Launch replay: every car leaves the line after its own reaction time (slowed down), so the
+  // finishing order and the gaps between starters are easy to see.
+  function renderReplay(root, rows) {
+    const SLOW = 8;
+    root.innerHTML = `<div class="replay">${rows.map((r) => `<div class="lane${r.me ? ' me' : ''}"><span class="ln">${esc(r.label)}</span><div class="track"><i class="car${r.jump ? ' dq' : ''}" style="--c:${r.color};--d:${r.jump ? 0 : (r.t * SLOW).toFixed(3)}s"></i></div><span class="lt num">${r.jump ? '<span class="tag-jump">JUMP</span>' : fmt(r.t)}</span></div>`).join('')}</div><button class="icon-btn">↻ Replay</button>`;
+    const rp = root.querySelector('.replay');
+    const go = () => { rp.classList.add('reset'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.remove('reset'); requestAnimationFrame(() => requestAnimationFrame(() => rp.classList.add('go'))); };
+    root.querySelector('button').onclick = go;
+    setTimeout(go, 300);
+  }
 
   // ---------- Gantry ----------
   function buildGantry(root, small) {
@@ -571,6 +827,7 @@
   function show(name) {
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
     current = name;
+    if (name !== 'start' && name !== 'party') engine.stop();
     if (name === 'home') startHomeAnim(); else stopHomeAnim();
     $('#btn-standings').hidden = !store.season || name === 'standings' || name === 'start' || name === 'home' || name === 'setup';
     window.scrollTo(0, 0);
@@ -704,29 +961,38 @@
   // Shared start procedure used by race, practice and duel.
   // Fake-outs: sometimes the start is aborted (amber lamps flash, then the sequence restarts),
   // sometimes the lights are held for an unusually long time.
-  function runSequence({ pods, gantry, fakeRate, onLight, onAbort, onResume, onOut }) {
+  // A plan fixes every random choice of one start, so friends mode can give everyone the same lights.
+  function makePlan(fakeRate) {
+    return {
+      pre: 900 + Math.random() * 900,
+      abortAfter: Math.random() < fakeRate ? 2 + Math.floor(Math.random() * 4) : 0, // abort after 2–5 lights
+      abortGap: 500 + Math.random() * 900,
+      restartPre: 1500 + Math.random() * 800,
+      // Hold after the 5th light: usually 0.2–3.0 s weighted to the middle; sometimes a long 3.0–4.5 s hold
+      hold: Math.random() < fakeRate ? 3000 + Math.random() * 1500 : 200 + (Math.random() * 0.6 + Math.random() * 0.4) * 2800,
+    };
+  }
+
+  function runSequence({ pods, gantry, fakeRate, plan, onLight, onAbort, onResume, onOut }) {
+    plan = plan || makePlan(fakeRate);
     const ts = [];
     const at = (fn, ms) => ts.push(setTimeout(fn, ms));
     let raf = 0;
-    function seq(pre, allowAbort) {
-      const abortAfter = allowAbort && Math.random() < fakeRate ? 2 + Math.floor(Math.random() * 4) : 0; // abort after 2–5 lights
+    engine.start();
+    function seq(pre, abortAfter) {
       for (let i = 1; i <= 5; i++) {
         if (abortAfter && i > abortAfter) break;
-        at(() => { setLights(pods, i); onLight && onLight(i); }, pre + (i - 1) * 1000);
+        at(() => { setLights(pods, i); engine.rev(i); buzz(15); beep(560 + i * 20, 0.06, 0.05); onLight && onLight(i); }, pre + (i - 1) * 1000);
       }
       if (abortAfter) {
-        const tA = pre + (abortAfter - 1) * 1000 + 500 + Math.random() * 900;
-        at(() => { setLights(pods, 0); gantry.classList.add('abort'); onAbort && onAbort(); beep(300, 0.25, 0.15); }, tA);
-        at(() => { gantry.classList.remove('abort'); onResume && onResume(); seq(1500 + Math.random() * 800, false); }, tA + 2800);
+        const tA = pre + (abortAfter - 1) * 1000 + plan.abortGap;
+        at(() => { setLights(pods, 0); gantry.classList.add('abort'); engine.rev(0); buzz([30, 60, 30]); beep(300, 0.25, 0.12); onAbort && onAbort(); }, tA);
+        at(() => { gantry.classList.remove('abort'); onResume && onResume(); seq(plan.restartPre, 0); }, tA + 2800);
         return;
       }
-      // Hold after the 5th light: usually 0.2–3.0 s weighted to the middle; sometimes a long 3.0–4.5 s hold
-      const hold = Math.random() < fakeRate
-        ? 3000 + Math.random() * 1500
-        : 200 + (Math.random() * 0.6 + Math.random() * 0.4) * 2800;
-      at(() => { raf = requestAnimationFrame(() => { setLights(pods, 0); onOut(performance.now()); }); }, pre + 4000 + hold);
+      at(() => { raf = requestAnimationFrame(() => { setLights(pods, 0); onOut(performance.now()); }); }, pre + 4000 + plan.hold);
     }
-    seq(900 + Math.random() * 900, true);
+    seq(plan.pre, plan.abortAfter);
     return { cancel() { ts.forEach(clearTimeout); cancelAnimationFrame(raf); gantry.classList.remove('abort'); } };
   }
 
@@ -769,7 +1035,7 @@
     const fakeRate = mode === 'race' ? DIFF[S().diff].fake : DIFF[store.profile.diff || 'pro'].fake;
     seqCtl = runSequence({
       pods: racePods, gantry: $('#race-gantry'), fakeRate,
-      onLight: (i) => { phase = 'lighting'; beep(560 + i * 20, 0.09, 0.12); if (i === 1) msg('&nbsp;', ''); },
+      onLight: (i) => { phase = 'lighting'; if (i === 1) msg('&nbsp;', ''); },
       onAbort: () => { phase = 'abort'; msg('<span class="amber">START ABORTED</span>', 'Don\'t move. The procedure will restart.'); },
       onResume: () => { phase = 'armed'; msg('Hold…', 'Restarting the procedure'); },
       onOut: (t) => { tOut = t; phase = 'out'; },
@@ -801,8 +1067,10 @@
     if (jump) {
       setLights(racePods, 0);
       stage.classList.remove('flash-red'); void stage.offsetWidth; stage.classList.add('flash-red');
-      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-      beep(180, 0.35, 0.2);
+      buzz([60, 40, 60]);
+      engine.stall();
+    } else {
+      engine.launch();
     }
     const shown = jump ? 'JUMP START' : fmt(t);
     const isPb = !jump && (store.career.pb == null || t < store.career.pb);
@@ -876,7 +1144,7 @@
   document.addEventListener('visibilitychange', () => {
     // Don't let a hidden tab ruin a start: reset if the sequence was running
     if (document.hidden && current === 'start' && ['armed', 'lighting', 'abort', 'out'].includes(phase)) {
-      clearTimers(); phase = 'idle'; setLights(racePods, 0);
+      clearTimers(); engine.stop(); phase = 'idle'; setLights(racePods, 0);
       msg('Start aborted', 'Tap anywhere or press Space to restart the procedure');
     }
   });
@@ -904,6 +1172,10 @@
       const gap = e.jump ? '' : e.pos === 1 ? '' : '+' + fmt(e.t - winner.t);
       return `<tr class="${d.me ? 'me' : ''}"><td class="pos ${e.jump ? '' : posClass(e.pos)}">${e.jump ? '—' : e.pos}</td><td>${driverCell(d)}</td><td class="r num">${e.jump ? '<span class="tag-jump">JUMP</span>' : fmt(e.t)}</td><td class="r num hide-sm" style="color:var(--muted)">${gap}</td><td class="r num"><b>${e.pts || ''}</b></td></tr>`;
     }).join('');
+    const top = r.cls.slice(0, 5);
+    if (!top.includes(me)) top.push(me);
+    renderReplay($('#rs-replay'), top.map((e) => { const d = driver(e.id); return { label: d.code, color: teamOf(d.team).color, t: e.t, jump: e.jump, me: !!d.me }; }));
+    if (!me.jump && me.pos <= 3 && !r.celebrated) { r.celebrated = true; save(); setTimeout(() => confetti(me.pos === 1), 150); }
     $('#btn-rs-next').textContent = s.round >= s.rounds.length ? 'Season finale →' : `Next: ${venue(s.round).city}`;
     show('result');
   }
@@ -972,6 +1244,7 @@
       if (myPos === 1) store.career.titles++;
       save();
     }
+    if (myPos === 1 && !s.celebrated) { s.celebrated = true; save(); setTimeout(() => confetti(true), 200); }
     $('#fn-trophy').textContent = myPos === 1 ? '🏆' : myPos <= 3 ? '🥇🥈🥉'.slice((myPos - 1) * 2, myPos * 2) : '🏁';
     $('#fn-head').textContent = myPos === 1 ? 'World Champion!' : `You finished ${ord(myPos)}`;
     $('#fn-sub').textContent = myPos === 1
@@ -1052,7 +1325,8 @@
   $('#btn-cal-reset').onclick = () => { calStop(); $('#btn-cal-start').disabled = false; store.latency = 0; store.calibrated = false; save(); openCalibrate(); };
 
   // ---------- Duel: two players, one device ----------
-  const DUEL_TARGET = 3; // first to 3 round wins (best of 5)
+  const duelTarget = () => Math.ceil((store.duel.bestOf || 5) / 2);
+  const duelName = (p) => store.duel.names[p] || `Player ${p + 1}`;
   const duelEl = $('#duel');
   const duelHalves = [duelEl.querySelector('.p1'), duelEl.querySelector('.p2')];
   const duelPods = buildGantry($('#duel-gantry'), true);
@@ -1062,9 +1336,10 @@
     const h = duelHalves[p];
     h.querySelector('.duel-main').innerHTML = main;
     h.querySelector('.duel-sub').innerHTML = sub || '';
+    h.querySelector('.duel-who').textContent = duelName(p);
     h.classList.remove('ready', 'win', 'lose');
     if (cls) h.classList.add(cls);
-    h.querySelector('.duel-pips').innerHTML = Array.from({ length: DUEL_TARGET }, (_, i) => `<i class="${i < duel.score[p] ? 'on' : ''}"></i>`).join('');
+    h.querySelector('.duel-pips').innerHTML = Array.from({ length: duelTarget() }, (_, i) => `<i class="${i < duel.score[p] ? 'on' : ''}"></i>`).join('');
   }
   function duelCancel() { if (duel.ctl) duel.ctl.cancel(); duel.ctl = null; clearTimeout(duel.endTimer); setLights(duelPods, 0); }
   function openDuel() {
@@ -1075,7 +1350,7 @@
     duelEl.classList.add('active');
     duelNewRound();
   }
-  function closeDuel() { duelCancel(); duelEl.classList.remove('active'); renderHome(); }
+  function closeDuel() { duelCancel(); engine.stop(); duelEl.classList.remove('active'); renderHome(); }
   function duelNewRound() {
     duelCancel();
     duel.round++;
@@ -1100,13 +1375,14 @@
       const t = reactionFrom(e, duel.tOut);
       if (t < MIN_HUMAN) return duelEnd(1 - p, { jumper: p, why: `${fmt(Math.max(0, t))} s is anticipation` });
       duel.times[p] = t;
+      engine.launch();
       duelSet(p, fmt(t), duel.times[1 - p] == null ? 'Waiting…' : '');
       if (duel.times[1 - p] != null) duelEnd();
       else duel.endTimer = setTimeout(() => duelEnd(), 1200); // don't wait forever for the slower player
       return;
     }
     if (ph === 'over' && performance.now() > duel.lockUntil) {
-      if (duel.score[0] >= DUEL_TARGET || duel.score[1] >= DUEL_TARGET) { duel.score = [0, 0]; duel.round = 0; }
+      if (duel.score[0] >= duelTarget() || duel.score[1] >= duelTarget()) { duel.score = [0, 0]; duel.round = 0; }
       duelNewRound();
     }
   }
@@ -1115,7 +1391,7 @@
     [0, 1].forEach((p) => duelSet(p, 'Hold…', 'Lights coming on', 'ready'));
     duel.ctl = runSequence({
       pods: duelPods, gantry: $('#duel-gantry'), fakeRate: 0.1,
-      onLight: (i) => { duel.phase = 'lighting'; beep(560 + i * 20, 0.09, 0.12); if (i === 1) [0, 1].forEach((p) => duelSet(p, '&nbsp;', '')); },
+      onLight: (i) => { duel.phase = 'lighting'; if (i === 1) [0, 1].forEach((p) => duelSet(p, '&nbsp;', '')); },
       onAbort: () => { duel.phase = 'abort'; [0, 1].forEach((p) => duelSet(p, '<span class="amber">ABORTED</span>', 'Don\'t move!')); },
       onResume: () => { duel.phase = 'armed'; [0, 1].forEach((p) => duelSet(p, 'Hold…', 'Restarting')); },
       onOut: (t) => { duel.tOut = t; duel.phase = 'out'; },
@@ -1131,11 +1407,11 @@
     }
     duel.score[winner]++;
     const loser = 1 - winner;
-    const matchOver = duel.score[winner] >= DUEL_TARGET;
+    const matchOver = duel.score[winner] >= duelTarget();
     const next = matchOver ? 'Tap for a rematch' : 'Tap for next round';
     if (jump) {
-      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-      beep(180, 0.35, 0.2);
+      buzz([60, 40, 60]);
+      engine.stall();
       duelSet(loser, '<span style="color:var(--red)">JUMP START</span>', `${jump.why} · ${next}`, 'lose');
       duelSet(winner, matchOver ? '🏆 You win!' : 'Round won', `Opponent jumped · ${next}`, 'win');
     } else {
@@ -1143,7 +1419,8 @@
       duelSet(winner, `${matchOver ? '🏆 ' : ''}${fmt(tw)}`, `${matchOver ? 'Match won' : 'Round won'}${tl != null ? ' by ' + fmt(tl - tw) + ' s' : ''} · ${next}`, 'win');
       duelSet(loser, tl != null ? fmt(tl) : 'Too slow', `${matchOver ? 'Match lost' : 'Round lost'} · ${next}`, 'lose');
     }
-    $('#duel-round').textContent = matchOver ? `Player ${winner + 1} wins ${duel.score[winner]}–${duel.score[loser]}` : `Round ${duel.round} · ${duel.score[0]}–${duel.score[1]}`;
+    if (matchOver) setTimeout(() => confetti(true), 100);
+    $('#duel-round').textContent = matchOver ? `${esc(duelName(winner))} wins ${duel.score[winner]}–${duel.score[loser]}` : `Round ${duel.round} · ${duel.score[0]}–${duel.score[1]}`;
   }
   duelHalves.forEach((h) => h.addEventListener('pointerdown', (e) => { e.preventDefault(); duelTap(+h.dataset.p, e); }));
   duelEl.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1156,17 +1433,210 @@
     else if (e.code === 'Escape') closeDuel();
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && current === 'duel' && ['armed', 'lighting', 'abort', 'out'].includes(duel.phase)) { duel.round--; duelNewRound(); }
+    if (document.hidden && current === 'duel' && ['armed', 'lighting', 'abort', 'out'].includes(duel.phase)) { engine.stop(); duel.round--; duelNewRound(); }
+  });
+
+  // Duel setup
+  let duelDraft = null;
+  function openDuelSetup() {
+    duelDraft = { names: store.duel.names.slice(), bestOf: store.duel.bestOf || 5 };
+    $('#in-d1').value = duelDraft.names[0]; $('#in-d2').value = duelDraft.names[1];
+    syncSeg('#seg-bestof', String(duelDraft.bestOf));
+    show('duel-setup');
+  }
+  $('#seg-bestof').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; duelDraft.bestOf = +b.dataset.v; syncSeg('#seg-bestof', b.dataset.v); });
+  $('#btn-ds-back').onclick = () => renderHome();
+  $('#btn-ds-go').onclick = () => {
+    store.duel = { names: [$('#in-d1').value.trim() || 'Player 1', $('#in-d2').value.trim() || 'Player 2'], bestOf: duelDraft.bestOf };
+    save();
+    openDuel();
+  };
+
+  // ---------- Friends mode: pass & play ----------
+  const PCOL = ['#ff2a1f', '#3b82f6', '#22c55e', '#f5c542', '#a855f7', '#ff8000', '#00d2be', '#ff87bc'];
+  const ptPods = buildGantry($('#pt-gantry'));
+  const ptStage = $('#pt-stage');
+  let ptDraft = null, party = null, ptPhase = 'pass', ptCtl = null, ptOut = 0;
+
+  function openPartySetup() {
+    ptDraft = { names: store.party.names.slice(0, 8), rounds: store.party.rounds || 5 };
+    while (ptDraft.names.length < 2) ptDraft.names.push(`Player ${ptDraft.names.length + 1}`);
+    renderPtList();
+    syncSeg('#seg-pt-rounds', String(ptDraft.rounds));
+    show('party-setup');
+  }
+  function renderPtList() {
+    const list = $('#pt-list'); list.innerHTML = '';
+    ptDraft.names.forEach((n, i) => {
+      const row = el('div', 'pt-row', `<span class="swatch" style="background:${PCOL[i]}"></span>`);
+      const inp = el('input'); inp.type = 'text'; inp.maxLength = 14; inp.value = n; inp.placeholder = `Player ${i + 1}`; inp.autocomplete = 'off';
+      inp.oninput = () => { ptDraft.names[i] = inp.value; };
+      const rm = el('button', 'icon-btn', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Remove player');
+      rm.disabled = ptDraft.names.length <= 2;
+      rm.onclick = () => { ptDraft.names.splice(i, 1); renderPtList(); };
+      row.append(inp, rm); list.append(row);
+    });
+    $('#btn-pt-add').disabled = ptDraft.names.length >= 8;
+  }
+  $('#btn-pt-add').onclick = () => { if (ptDraft.names.length < 8) { ptDraft.names.push(''); renderPtList(); $('#pt-list').lastElementChild.querySelector('input').focus(); } };
+  $('#seg-pt-rounds').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; ptDraft.rounds = +b.dataset.v; syncSeg('#seg-pt-rounds', b.dataset.v); });
+  $('#btn-pt-back').onclick = () => renderHome();
+  $('#btn-pt-go').onclick = () => {
+    const names = ptDraft.names.map((n, i) => n.trim() || `Player ${i + 1}`);
+    store.party = { names, rounds: ptDraft.rounds }; save();
+    startParty();
+  };
+
+  function startParty() {
+    party = {
+      players: store.party.names.map((name, i) => ({ name, color: PCOL[i], pts: 0, best: null, wins: 0, last: null })),
+      rounds: store.party.rounds, round: 0, turn: 0, plan: null, res: [],
+    };
+    ptNewRound();
+  }
+  function ptNewRound() {
+    party.round++; party.turn = 0; party.res = [];
+    party.plan = makePlan(0.1); // the same lights for everyone this round
+    ptPass();
+  }
+  function ptCancel() { if (ptCtl) ptCtl.cancel(); ptCtl = null; }
+  function ptMsg(main, sub, cls) {
+    $('#pt-msg').innerHTML = (cls ? `<div class="start-time ${cls}">${main}</div>` : `<div>${main}</div>`) + (sub ? `<small>${sub}</small>` : '');
+  }
+  function ptPass() {
+    ptCancel();
+    const pl = party.players[party.turn];
+    ptPhase = 'pass';
+    setLights(ptPods, 0);
+    $('#pt-eyebrow').textContent = `Round ${party.round} of ${party.rounds} · Turn ${party.turn + 1} of ${party.players.length}`;
+    $('#pt-title').innerHTML = `<span class="pt-name" style="color:${pl.color}">${esc(pl.name)}</span>`;
+    ptMsg(`Pass the phone to ${esc(pl.name)}`, 'Everyone gets the same lights this round');
+    const after = $('#pt-after'); after.innerHTML = '';
+    const go = el('button', 'btn primary', `I'm ${esc(pl.name)}, I'm ready`);
+    go.onclick = (ev) => { ev.stopPropagation(); unlockAudio(); ptArm(); };
+    after.append(go);
+    show('party');
+  }
+  function ptArm() {
+    ptPhase = 'armed';
+    $('#pt-after').innerHTML = '';
+    ptMsg('Hold…', 'Lights coming on');
+    ptCtl = runSequence({
+      pods: ptPods, gantry: $('#pt-gantry'), plan: party.plan,
+      onLight: (i) => { ptPhase = 'lighting'; if (i === 1) ptMsg('&nbsp;', ''); },
+      onAbort: () => { ptPhase = 'abort'; ptMsg('<span class="amber">START ABORTED</span>', 'Don\'t move. The procedure will restart.'); },
+      onResume: () => { ptPhase = 'armed'; ptMsg('Hold…', 'Restarting the procedure'); },
+      onOut: (t) => { ptOut = t; ptPhase = 'out'; },
+    });
+  }
+  function ptPress(e) {
+    if (current !== 'party') return;
+    if (ptPhase === 'armed' || ptPhase === 'lighting') return ptDone(null, 'early');
+    if (ptPhase === 'abort') return ptDone(null, 'abort');
+    if (ptPhase === 'out') {
+      const t = reactionFrom(e, ptOut);
+      return t < MIN_HUMAN ? ptDone(null, 'anticipation', t) : ptDone(t);
+    }
+  }
+  function ptDone(t, why, raw) {
+    ptCancel();
+    ptPhase = 'done';
+    const pl = party.players[party.turn];
+    party.res.push({ i: party.turn, t, jump: t == null });
+    if (t == null) {
+      setLights(ptPods, 0);
+      ptStage.classList.remove('flash-red'); void ptStage.offsetWidth; ptStage.classList.add('flash-red');
+      buzz([60, 40, 60]); engine.stall();
+      ptMsg('JUMP START', jumpWhy(why, raw), 'bad');
+    } else {
+      engine.launch();
+      const isBest = pl.best == null || t < pl.best;
+      if (isBest) pl.best = t;
+      const leader = party.res.filter((r) => !r.jump).sort((a, b) => a.t - b.t)[0];
+      ptMsg(fmt(t), leader.i === party.turn ? (party.turn ? 'Fastest so far this round!' : 'First to go. Time to beat') : `${esc(party.players[leader.i].name)} leads with ${fmt(leader.t)}`, leader.i === party.turn ? 'good' : '');
+    }
+    const after = $('#pt-after'); after.innerHTML = '';
+    const lastTurn = party.turn >= party.players.length - 1;
+    const next = el('button', 'btn primary', lastTurn ? 'Round results →' : `Pass to ${esc(party.players[party.turn + 1].name)} →`);
+    next.onclick = (ev) => { ev.stopPropagation(); ptNext(); };
+    after.append(next);
+  }
+  function ptNext() {
+    if (party.turn < party.players.length - 1) { party.turn++; ptPass(); }
+    else ptRoundEnd();
+  }
+  function ptRoundEnd() {
+    const N = party.players.length;
+    const ranked = party.res.slice().sort((a, b) => (a.jump - b.jump) || (a.jump ? 0 : a.t - b.t));
+    ranked.forEach((r, k) => {
+      r.pts = r.jump ? 0 : N - k;
+      const pl = party.players[r.i];
+      pl.pts += r.pts; pl.last = r;
+      if (k === 0 && !r.jump) pl.wins++;
+    });
+    const w = ranked[0];
+    $('#ptr-sub').textContent = `Round ${party.round} of ${party.rounds}`;
+    $('#ptr-head').textContent = w.jump ? 'Everyone jumped the start!' : `${party.players[w.i].name} wins the round`;
+    $('#ptr-replay-card').hidden = false;
+    renderReplay($('#ptr-replay'), ranked.map((r) => ({ label: party.players[r.i].name, color: party.players[r.i].color, t: r.t, jump: r.jump })));
+    $('#ptr-col-round').textContent = 'This round';
+    renderPtTable(true);
+    const final = party.round >= party.rounds;
+    $('#btn-ptr-next').textContent = final ? 'Final standings →' : `Round ${party.round + 1} →`;
+    $('#btn-ptr-next').onclick = final ? ptFinal : ptNewRound;
+    $('#btn-ptr-quit').textContent = 'Quit';
+    $('#btn-ptr-quit').onclick = () => { if (confirm('Quit this game?')) renderHome(); };
+    show('party-round');
+  }
+  function ptStandings() {
+    return party.players.slice().sort((a, b) => b.pts - a.pts || b.wins - a.wins || (a.best ?? 99) - (b.best ?? 99));
+  }
+  function renderPtTable(showRound) {
+    const tb = ptStandings();
+    $('#ptr-table').innerHTML = tb.map((pl, k) => {
+      const r = pl.last;
+      const roundCell = showRound ? (r.jump ? '<span class="tag-jump">JUMP</span>' : `${fmt(r.t)} <span style="color:var(--muted)">+${r.pts}</span>`) : `${pl.wins} win${pl.wins === 1 ? '' : 's'}`;
+      return `<tr><td class="pos ${posClass(k + 1)}">${k + 1}</td><td><div class="drv"><span class="swatch" style="background:${pl.color}"></span><span class="nm">${esc(pl.name)}</span></div></td><td class="r num">${roundCell}</td><td class="r num hide-sm">${fmt(pl.best)}</td><td class="r num"><b>${pl.pts}</b></td></tr>`;
+    }).join('');
+  }
+  function ptFinal() {
+    const tb = ptStandings();
+    $('#ptr-sub').textContent = `Final standings · ${party.rounds} rounds`;
+    $('#ptr-head').textContent = `🏆 ${tb[0].name} is the champion!`;
+    $('#ptr-replay-card').hidden = true;
+    $('#ptr-col-round').textContent = 'Round wins';
+    renderPtTable(false);
+    $('#btn-ptr-next').textContent = 'Play again';
+    $('#btn-ptr-next').onclick = startParty;
+    $('#btn-ptr-quit').textContent = 'Home';
+    $('#btn-ptr-quit').onclick = () => renderHome();
+    show('party-round');
+    setTimeout(() => confetti(true), 150);
+  }
+  ptStage.addEventListener('pointerdown', (e) => { if (e.button > 0 || e.target.closest('button')) return; e.preventDefault(); ptPress(e); });
+  ptStage.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('keydown', (e) => {
+    if (current !== 'party' || e.repeat) return;
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      if (ptPhase === 'pass' || ptPhase === 'done') { const b = $('#pt-after button'); if (b) b.click(); }
+      else ptPress(e);
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    // Hidden mid-start: replay this player's turn with the same lights
+    if (document.hidden && current === 'party' && ['armed', 'lighting', 'abort', 'out'].includes(ptPhase)) { engine.stop(); ptPass(); }
   });
 
   // ---------- Wiring ----------
-  $('#brand').onclick = () => { clearTimers(); renderHome(); };
+  $('#brand').onclick = () => { clearTimers(); ptCancel(); renderHome(); };
   $('#btn-continue').onclick = () => { const s = S(); if (s.round >= s.rounds.length) renderFinal(); else renderPrerace(); };
   $('#btn-new').onclick = () => {
     if (store.season && !store.season.closed && store.season.round > 0 && !confirm('Abandon your current season and start a new one?')) return;
     renderSetup();
   };
-  $('#btn-duel').onclick = openDuel;
+  $('#btn-duel').onclick = openDuelSetup;
+  $('#btn-party').onclick = openPartySetup;
   $('#btn-practice').onclick = () => { practiceLog = []; openStart('practice'); };
   $('#btn-setup-back').onclick = renderHome;
   $('#btn-setup-go').onclick = startSeason;
@@ -1186,6 +1656,23 @@
   function syncSound() { $('#btn-sound').textContent = store.sound ? '🔊' : '🔇'; }
   $('#btn-sound').onclick = () => { store.sound = !store.sound; save(); syncSound(); };
   syncSound();
+  function syncHaptic() { const b = $('#btn-haptic'); b.hidden = !canVibrate; b.textContent = store.haptics ? '📳' : '📴'; }
+  $('#btn-haptic').onclick = () => { store.haptics = !store.haptics; save(); syncHaptic(); buzz(30); };
+  syncHaptic();
+
+  // ---------- Installable app ----------
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('#btn-install').hidden = false; });
+  $('#btn-install').onclick = async () => {
+    if (!installEvt) return;
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) {}
+    installEvt = null; $('#btn-install').hidden = true;
+  };
+  window.addEventListener('appinstalled', () => { $('#btn-install').hidden = true; });
 
   renderHome();
 })();
