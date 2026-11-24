@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
 <title>Lights Out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -31,6 +34,7 @@
     --accent: #ff2a1f;
     --radius: 14px;
     --gap: clamp(8px, 1.7vh, 16px);
+    --display: "Exo 2", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -44,6 +48,11 @@
   }
   button { font: inherit; color: inherit; }
   .num { font-variant-numeric: tabular-nums; }
+  .brand, .title-xl, .h-screen, .start-time, .start-msg, .big-stat b, .stat b, .duel-main, .duel-who, .btn, .eyebrow,
+  .pos, .cal-item .res, .lane, table.cls th, .seg button, .tabs button, .pill, .trophy + div h2, #duel-round { font-family: var(--display); }
+  .h-screen { font-weight: 800; font-style: italic; letter-spacing: -.01em; }
+  .btn { letter-spacing: .02em; }
+  .big-stat b, .start-time, .title-xl, .duel-main { font-weight: 900; }
 
   /* Full-height app frame: the page itself never scrolls; long lists scroll inside .fill boxes */
   #app { max-width: 760px; margin: 0 auto; height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
@@ -143,6 +152,7 @@
     #app .start-stage .start-meta, #app .start-stage .start-msg, #app .start-stage .start-after { grid-column: 2; }
     #app .start-stage .start-msg { min-height: 0; }
     #app .start-stage .lamp { width: clamp(20px, 11vh, 48px); }
+    #app .start-stage .scene { display: none; }
   }
   .stat small { color: var(--muted); font-size: 11px; letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; font-weight: 700; }
 
@@ -150,9 +160,20 @@
   .gantry { display: flex; justify-content: center; gap: clamp(6px, 2.4vw, 16px); padding: clamp(10px, 3vw, 18px); background: #050607; border-radius: 16px; border: 1px solid #1d2229; position: relative; }
   .gantry::before { content: ""; position: absolute; left: 6%; right: 6%; top: -10px; height: 10px; background: #1d2229; border-radius: 4px 4px 0 0; }
   .pod { background: #0f1114; border: 1px solid #23282f; border-radius: 12px; padding: clamp(6px, 1.6vw, 10px); display: flex; flex-direction: column; gap: clamp(6px, 1.6vw, 10px); }
-  .lamp { width: clamp(24px, min(11vw, 6.6vh), 64px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3a1412, var(--lamp-off) 60%); box-shadow: inset 0 -3px 6px rgba(0,0,0,.6); transition: background .03s, box-shadow .03s; }
-  .lamp.dim { background: radial-gradient(circle at 35% 30%, #1a1d22, #101216 60%); }
-  .pod.on .lamp.red { background: radial-gradient(circle at 35% 30%, #ffb0a8, var(--red) 45%, #b40e06 100%); box-shadow: 0 0 22px var(--red-glow), 0 0 4px #fff inset; }
+  .lamp { position: relative; width: clamp(24px, min(11vw, 6.6vh), 64px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 58%, #2e0f0d, #150605 72%); box-shadow: inset 0 -3px 6px rgba(0,0,0,.75), inset 0 1px 2px rgba(255,255,255,.05), 0 0 0 2px #08090a; }
+  .lamp.dim { background: radial-gradient(circle at 50% 58%, #181a1e, #0b0c0f 72%); }
+  /* Glass lens shine */
+  .lamp::after { content: ""; position: absolute; left: 17%; top: 9%; width: 44%; height: 30%; border-radius: 50%; background: linear-gradient(rgba(255,255,255,.26), rgba(255,255,255,0)); transform: rotate(-22deg); pointer-events: none; z-index: 2; }
+  /* Lit layer: switches on and off instantly (crisp lights-out), with a short bloom when it comes on */
+  .lamp.red::before { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; z-index: 1;
+    background: radial-gradient(circle at 46% 42%, #fff3f0 0, #ff9a90 16%, var(--red) 46%, #9e0a03 100%);
+    box-shadow: 0 0 16px 2px var(--red-glow), 0 0 44px 8px rgba(255,42,31,.22); }
+  .pod.on .lamp.red::before { opacity: 1; animation: bloom .17s ease-out; }
+  @keyframes bloom { 0% { transform: scale(.82); filter: brightness(2.3); } 100% { transform: scale(1); filter: brightness(1); } }
+  /* Ember: once the lamp is off, a faint residual ring fades out (the lamp itself is already dark) */
+  .lamp.red { transition: box-shadow .32s ease-out; }
+  .pod.on .lamp.red { transition: none; box-shadow: inset 0 0 10px 3px rgba(255,64,36,.65), 0 0 0 2px #08090a; }
+  .gantry { box-shadow: 0 0 calc(var(--lit, 0) * 16px) calc(var(--lit, 0) * 2px) rgba(255,42,31, calc(var(--lit, 0) * .045)); }
   .gantry.small .lamp { width: clamp(18px, min(7vw, 4.6vh), 40px); }
 
   /* Start screen */
@@ -169,6 +190,46 @@
   .start-after { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .flash-red { animation: flashRed .5s ease; }
   @keyframes flashRed { 0% { background: rgba(255,42,31,.35); } 100% { background: transparent; } }
+
+  /* Track scene under the gantry */
+  .start-stage { background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(150,170,210,.07), transparent 70%); overflow: hidden; }
+  .start-stage .start-meta { margin-top: auto; }
+  .start-stage:has(.scene) { padding-bottom: 0; }
+  .scene { position: relative; width: 100%; height: clamp(56px, 17vh, 190px); flex: none; margin-top: auto; overflow: hidden; border-radius: 0 0 18px 18px; --car: var(--red); }
+  .scene .asphalt { position: absolute; left: -30%; right: -30%; top: 0; bottom: 0; transform: perspective(260px) rotateX(38deg); transform-origin: 50% 100%;
+    background: linear-gradient(#1a1d22, #0e1013); border-top: 2px solid #2a2f37; }
+  .scene .asphalt::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 40% 70% at 50% 0%, rgba(255,42,31, calc(var(--lit, 0) * .07)), transparent 70%); }
+  .scene .kerb { position: absolute; top: 0; bottom: 0; width: 7%; background: repeating-linear-gradient(0deg, #c8102e 0 14px, #e9e9e9 14px 28px); opacity: .85; }
+  .scene .kerb.l { left: 14%; } .scene .kerb.r { right: 14%; }
+  .scene .box { position: absolute; bottom: 6%; left: 50%; width: 34%; height: 70%; transform: translateX(-50%); border: 4px solid rgba(255,255,255,.7); border-bottom: none; }
+  .scene .box.ahead { bottom: 78%; width: 30%; height: 40%; left: 28%; opacity: .6; }
+  .scene .car { position: absolute; left: 50%; bottom: 2%; width: min(46%, 150vh / 11, 210px); height: auto; transform: translateX(-50%); color: var(--car); filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+  .scene .rain { fill: #3a0705; }
+  .scene.stall .rain { animation: rain .3s steps(1) infinite; }
+  @keyframes rain { 0% { fill: #ff2a1f; } 50% { fill: #3a0705; } }
+  .scene.go .car { animation: driveAway 1s cubic-bezier(.5, 0, .9, .6) forwards; }
+  @keyframes driveAway { 0% { transform: translateX(-50%); } 12% { transform: translateX(-50%) translateY(3%) scale(1.02); } 100% { transform: translateX(-50%) translateY(-120%) scale(.25); opacity: 0; } }
+  .scene .smoke { position: absolute; left: 50%; bottom: 0; width: 70%; height: 70%; transform: translateX(-50%); opacity: 0; pointer-events: none;
+    background: radial-gradient(circle at 25% 70%, rgba(200,200,205,.55), transparent 40%), radial-gradient(circle at 75% 70%, rgba(200,200,205,.55), transparent 40%); filter: blur(6px); }
+  .scene.go .smoke { animation: smoke 1.1s ease-out forwards; }
+  @keyframes smoke { 0% { opacity: .9; transform: translateX(-50%) scale(.6); } 100% { opacity: 0; transform: translateX(-50%) scale(1.8) translateY(-10%); } }
+  .shake { animation: shake .28s linear; }
+  @keyframes shake { 0%,100% { transform: none; } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, -1px); } 80% { transform: translate(2px, 1px); } }
+  @media (prefers-reduced-motion: reduce) { .shake { animation: none; } }
+
+  /* Richer results */
+  .dl { font-family: var(--display); font-size: 11px; font-weight: 800; }
+  .dl.up { color: var(--green); } .dl.dn { color: #ff6b62; } .dl.eq { color: var(--muted); opacity: .6; }
+  table.cls th.dlc, table.cls td.dlc { width: 40px; text-align: right; }
+  .form { display: inline-flex; gap: 3px; }
+  .form i { font-style: normal; font-family: var(--display); font-size: 10px; font-weight: 800; min-width: 17px; height: 15px; padding: 0 3px; border-radius: 4px; display: inline-grid; place-items: center; background: #232831; color: var(--muted); }
+  .form i.f1 { background: var(--gold); color: #1b1400; } .form i.f3 { background: #3b3f47; color: #fff; } .form i.fp { background: #1f3a2a; color: #9fe3b7; } .form i.fj { background: rgba(255,42,31,.25); color: #ff8d86; }
+  .best-mark { display: block; margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .best-mark.pb { color: var(--gold); } .best-mark.sb { color: #9fe3b7; }
+  .cal-item .star { color: var(--gold); margin-left: 4px; }
+  .spark i.best { background: var(--gold); opacity: 1; }
+  .spark-flags { display: flex; gap: 3px; margin-top: 4px; }
+  .spark-flags span { flex: 1; text-align: center; font-size: 10px; line-height: 1; overflow: hidden; }
 
   /* Tables */
   table.cls { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
@@ -224,7 +285,7 @@
   /* Aborted start: the amber lamps flash */
   .gantry.abort .lamp.dim { animation: amber .5s steps(1) infinite; }
   @keyframes amber {
-    0% { background: radial-gradient(circle at 35% 30%, #ffe6a8, #ffb000 45%, #a86b00 100%); box-shadow: 0 0 20px rgba(255,176,0,.6); }
+    0% { background: radial-gradient(circle at 46% 42%, #fff4d6, #ffb000 45%, #9a6200 100%); box-shadow: 0 0 20px rgba(255,176,0,.6); }
     50% { background: radial-gradient(circle at 35% 30%, #1a1d22, #101216 60%); box-shadow: none; }
   }
   .amber { color: #ffb000; }
@@ -399,6 +460,24 @@
         <div class="gantry" id="race-gantry"></div>
         <div class="start-msg" id="ss-msg"></div>
         <div class="start-after" id="ss-after"></div>
+        <div class="scene" aria-hidden="true">
+          <div class="asphalt"><div class="kerb l"></div><div class="kerb r"></div><div class="box ahead"></div><div class="box"></div></div>
+          <div class="smoke"></div>
+          <svg class="car" viewBox="0 0 200 110">
+            <ellipse cx="100" cy="104" rx="96" ry="6" fill="rgba(0,0,0,.55)"/>
+            <rect x="12" y="44" width="46" height="60" rx="11" fill="#111"/><rect x="142" y="44" width="46" height="60" rx="11" fill="#111"/>
+            <rect x="16" y="50" width="38" height="4" rx="2" fill="#2a2a2a"/><rect x="146" y="50" width="38" height="4" rx="2" fill="#2a2a2a"/>
+            <path d="M66 96 L134 96 L118 30 L82 30 Z" fill="currentColor"/>
+            <path d="M82 30 L118 30 L114 42 L86 42 Z" fill="rgba(0,0,0,.25)"/>
+            <rect x="88" y="20" width="24" height="14" rx="5" fill="#15171a"/>
+            <rect x="96" y="22" width="8" height="26" fill="#1b1d21"/>
+            <rect x="24" y="6" width="152" height="15" rx="3" fill="currentColor"/>
+            <rect x="24" y="17" width="152" height="4" fill="rgba(0,0,0,.3)"/>
+            <rect x="20" y="2" width="9" height="44" rx="2" fill="#15171a"/><rect x="171" y="2" width="9" height="44" rx="2" fill="#15171a"/>
+            <rect x="60" y="88" width="80" height="14" rx="2" fill="#0b0c0e"/>
+            <rect x="92" y="74" width="16" height="8" rx="2" class="rain"/>
+          </svg>
+        </div>
       </div>
     </section>
 
@@ -410,7 +489,7 @@
           <h2 class="h-screen" id="rs-head"></h2>
         </div>
         <div class="result-hero">
-          <div class="big-stat"><small>Reaction</small><b class="num" id="rs-time"></b><span id="rs-time-note"></span></div>
+          <div class="big-stat"><small>Reaction</small><b class="num" id="rs-time"></b><span id="rs-time-note"></span><span class="best-mark" id="rs-best"></span></div>
           <div class="big-stat"><small>Finished</small><b class="num" id="rs-pos"></b><span class="hint" id="rs-pts"></span></div>
         </div>
         <div class="card replay-card">
@@ -532,6 +611,24 @@
         <div class="gantry" id="pt-gantry"></div>
         <div class="start-msg" id="pt-msg"></div>
         <div class="start-after" id="pt-after"></div>
+        <div class="scene" aria-hidden="true">
+          <div class="asphalt"><div class="kerb l"></div><div class="kerb r"></div><div class="box ahead"></div><div class="box"></div></div>
+          <div class="smoke"></div>
+          <svg class="car" viewBox="0 0 200 110">
+            <ellipse cx="100" cy="104" rx="96" ry="6" fill="rgba(0,0,0,.55)"/>
+            <rect x="12" y="44" width="46" height="60" rx="11" fill="#111"/><rect x="142" y="44" width="46" height="60" rx="11" fill="#111"/>
+            <rect x="16" y="50" width="38" height="4" rx="2" fill="#2a2a2a"/><rect x="146" y="50" width="38" height="4" rx="2" fill="#2a2a2a"/>
+            <path d="M66 96 L134 96 L118 30 L82 30 Z" fill="currentColor"/>
+            <path d="M82 30 L118 30 L114 42 L86 42 Z" fill="rgba(0,0,0,.25)"/>
+            <rect x="88" y="20" width="24" height="14" rx="5" fill="#15171a"/>
+            <rect x="96" y="22" width="8" height="26" fill="#1b1d21"/>
+            <rect x="24" y="6" width="152" height="15" rx="3" fill="currentColor"/>
+            <rect x="24" y="17" width="152" height="4" fill="rgba(0,0,0,.3)"/>
+            <rect x="20" y="2" width="9" height="44" rx="2" fill="#15171a"/><rect x="171" y="2" width="9" height="44" rx="2" fill="#15171a"/>
+            <rect x="60" y="88" width="80" height="14" rx="2" fill="#0b0c0e"/>
+            <rect x="92" y="74" width="16" height="8" rx="2" class="rain"/>
+          </svg>
+        </div>
       </div>
     </section>
 
@@ -854,7 +951,12 @@
     }
     return [...root.children];
   }
-  function setLights(pods, n) { pods.forEach((p, i) => p.classList.toggle('on', i < n)); }
+  function setLights(pods, n) {
+    pods.forEach((p, i) => p.classList.toggle('on', i < n));
+    const g = pods[0].parentElement; // drives the gantry/stadium glow
+    g.style.setProperty('--lit', n);
+    if (g.parentElement) g.parentElement.style.setProperty('--lit', n);
+  }
 
   // Idle animation on the home screen
   const homePods = buildGantry($('#home-gantry'), true);
@@ -950,6 +1052,35 @@
   // ---------- Season helpers ----------
   const S = () => store.season;
   const driver = (id) => S().roster.find((d) => d.id === id);
+  // Championship order after a given set of results (same tie-breaks as sortedStandings)
+  function orderFrom(results) {
+    const s = S(), m = {};
+    s.roster.forEach((d) => { m[d.id] = { pts: 0, wins: 0, podiums: 0, best: 99 }; });
+    results.forEach((r) => r.cls.forEach((e) => {
+      const st = m[e.id]; st.pts += e.pts;
+      if (!e.jump && e.pos === 1) st.wins++;
+      if (!e.jump && e.pos <= 3) st.podiums++;
+      st.best = Math.min(st.best, e.pos);
+    }));
+    return s.roster.map((d) => d.id).sort((a, b) => m[b].pts - m[a].pts || m[b].wins - m[a].wins || m[b].podiums - m[a].podiums || m[a].best - m[b].best);
+  }
+  // Places gained (+) or lost (−) in the championship with the latest race
+  function posDelta() {
+    const s = S(), out = {};
+    if (s.results.length < 2) return out;
+    const prev = orderFrom(s.results.slice(0, -1));
+    sortedStandings().forEach((r, i) => { out[r.d.id] = prev.indexOf(r.d.id) - i; });
+    return out;
+  }
+  const deltaBadge = (n) => n == null ? '' : !n ? '<span class="dl eq">–</span>' : n > 0 ? `<span class="dl up">▲${n}</span>` : `<span class="dl dn">▼${-n}</span>`;
+  const formChips = (fin) => `<span class="form">${fin.slice(-5).map((x) => x === 'J' ? '<i class="fj">J</i>' : `<i class="${x === 1 ? 'f1' : x <= 3 ? 'f3' : x <= 10 ? 'fp' : ''}">${x}</i>`).join('')}</span>`;
+  // Season-best index of the player's starts
+  function myBestRound() {
+    let bi = -1, bt = Infinity;
+    S().results.forEach((r, i) => { const me = r.cls.find((e) => e.id === 'me'); if (!me.jump && me.t < bt) { bt = me.t; bi = i; } });
+    return bi;
+  }
+
   function sortedStandings() {
     const s = S();
     return s.roster.map((d) => ({ d, st: s.standings[d.id] }))
@@ -963,9 +1094,9 @@
   }
   function venue(i) { const [city, flag] = CALENDAR[S().rounds[i]]; return { city, flag }; }
 
-  function driverCell(d) {
+  function driverCell(d, sub) {
     const t = teamOf(d.team);
-    return `<div class="drv"><span class="swatch" style="background:${t.color}"></span><div class="txt"><span class="nm">${esc(d.name)}${d.me ? ' <span class="pill" style="padding:1px 6px;font-size:10px">YOU</span>' : ''}</span><span class="tm">${esc(t.name)}</span></div></div>`;
+    return `<div class="drv"><span class="swatch" style="background:${t.color}"></span><div class="txt"><span class="nm">${esc(d.name)}${d.me ? ' <span class="pill" style="padding:1px 6px;font-size:10px">YOU</span>' : ''}</span><span class="tm">${sub || esc(t.name)}</span></div></div>`;
   }
   const posClass = (p) => p === 1 ? 'p1' : p === 2 ? 'p2' : p === 3 ? 'p3' : '';
 
@@ -996,12 +1127,26 @@
     } else { $('#pr-last').textContent = '—'; $('#pr-last-pos').textContent = 'No starts yet'; }
     const top = table.slice(0, 5);
     if (myIdx >= 5) top.push(table[myIdx]);
+    const dl = posDelta();
     $('#pr-top').innerHTML = top.map((r) => {
       const p = table.indexOf(r) + 1;
-      return `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(p)}">${p}</td><td>${driverCell(r.d)}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`;
+      return `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(p)}">${p}</td><td>${driverCell(r.d, s.round ? formChips(r.st.finishes) : '')}</td><td class="dlc">${deltaBadge(dl[r.d.id])}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`;
     }).join('');
     show('prerace');
   }
+
+  // ---------- Track scene ----------
+  function sceneReset(stageEl, color) {
+    const sc = stageEl.querySelector('.scene');
+    sc.classList.remove('go', 'stall');
+    if (color) sc.style.setProperty('--car', color);
+  }
+  function sceneLaunch(stageEl) {
+    const sc = stageEl.querySelector('.scene');
+    sc.classList.remove('stall'); sc.classList.add('go');
+    stageEl.classList.remove('shake'); void stageEl.offsetWidth; stageEl.classList.add('shake');
+  }
+  function sceneStall(stageEl) { stageEl.querySelector('.scene').classList.add('stall'); }
 
   // ---------- Start sequence ----------
   const racePods = buildGantry($('#race-gantry'));
@@ -1064,6 +1209,7 @@
     phase = 'idle';
     clearTimers();
     setLights(racePods, 0);
+    sceneReset(stage, mode === 'race' ? teamOf(store.profile.team).color : '#ff2a1f');
     if (mode === 'race') {
       const v = venue(S().round);
       $('#ss-eyebrow').textContent = `Round ${S().round + 1} · ${v.flag} ${v.city}`;
@@ -1123,8 +1269,10 @@
       stage.classList.remove('flash-red'); void stage.offsetWidth; stage.classList.add('flash-red');
       buzz([60, 40, 60]);
       engine.stall();
+      sceneStall(stage);
     } else {
       engine.launch();
+      sceneLaunch(stage);
     }
     const shown = jump ? 'JUMP START' : fmt(t);
     const isPb = !jump && (store.career.pb == null || t < store.career.pb);
@@ -1147,6 +1295,7 @@
 
     // Race mode: simulate the field
     const res = runRace(jump ? null : t, jump);
+    S().results[S().results.length - 1].pb = isPb; save();
     const me = res.find((r) => r.id === 'me');
     const sub = jump ? jumpWhy(reason, t) : `${isPb ? '🏅 New personal best · ' : ''}You ${me.pos === 1 ? 'won the start!' : 'finished ' + ord(me.pos)}`;
     msg(shown, sub, jump ? 'bad' : (me.pos <= 3 ? 'good' : 'plain'));
@@ -1218,6 +1367,12 @@
     if (me.jump) { note.className = 'pill red'; note.textContent = '0 points'; }
     else if (me.pos === 1) { note.className = 'pill green'; const second = r.cls[1]; note.textContent = `+${fmt(second.t - me.t)} clear`; }
     else { note.className = 'pill'; note.textContent = `+${fmt(me.t - winner.t)} to ${driver(winner.id).code}`; }
+    const bm = $('#rs-best');
+    const prevBest = Math.min(Infinity, ...s.results.slice(0, -1).map((x) => x.cls.find((e) => e.id === 'me')).filter((m) => !m.jump).map((m) => m.t));
+    if (me.jump) { bm.className = 'best-mark'; bm.textContent = 'No time set'; }
+    else if (r.pb) { bm.className = 'best-mark pb'; bm.textContent = '🏅 Personal best'; }
+    else if (me.t < prevBest) { bm.className = 'best-mark sb'; bm.textContent = '★ Season best'; }
+    else { bm.className = 'best-mark'; bm.textContent = `+${fmt(me.t - prevBest)} off season best`; }
     $('#rs-pos').textContent = me.jump ? 'DSQ' : ord(me.pos);
     $('#rs-pos').className = 'num ' + posClass(me.jump ? 0 : me.pos);
     $('#rs-pts').textContent = `+${me.pts} pts · ${s.standings.me.pts} total`;
@@ -1247,8 +1402,9 @@
     const body = $('#sd-body');
     if (sdTab === 'drivers') {
       const tb = sortedStandings();
-      body.innerHTML = `<div class="card tight"><table class="cls"><thead><tr><th>Pos</th><th>Driver</th><th class="r hide-sm">Wins</th><th class="r hide-sm">Pod.</th><th class="r">Pts</th></tr></thead><tbody>${
-        tb.map((r, i) => `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(i + 1)}">${i + 1}</td><td>${driverCell(r.d)}</td><td class="r num hide-sm">${r.st.wins}</td><td class="r num hide-sm">${r.st.podiums}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`).join('')
+      const dl = posDelta();
+      body.innerHTML = `<div class="card tight"><table class="cls"><thead><tr><th>Pos</th><th>Driver · last 5</th><th class="dlc"></th><th class="r hide-sm">Wins</th><th class="r hide-sm">Pod.</th><th class="r">Pts</th></tr></thead><tbody>${
+        tb.map((r, i) => `<tr class="${r.d.me ? 'me' : ''}"><td class="pos ${posClass(i + 1)}">${i + 1}</td><td>${driverCell(r.d, r.st.finishes.length ? formChips(r.st.finishes) : '')}</td><td class="dlc">${deltaBadge(dl[r.d.id])}</td><td class="r num hide-sm">${r.st.wins}</td><td class="r num hide-sm">${r.st.podiums}</td><td class="r num"><b>${r.st.pts}</b></td></tr>`).join('')
       }</tbody></table></div>`;
     } else if (sdTab === 'teams') {
       const tb = teamStandings();
@@ -1256,11 +1412,12 @@
         tb.map((r, i) => `<tr class="${r.t.id === store.profile.team ? 'me' : ''}"><td class="pos ${posClass(i + 1)}">${i + 1}</td><td><div class="drv"><span class="swatch" style="background:${r.t.color}"></span><span class="nm">${esc(r.t.name)}</span></div></td><td class="r num">${r.wins}</td><td class="r num"><b>${r.pts}</b></td></tr>`).join('')
       }</tbody></table></div>`;
     } else if (sdTab === 'calendar') {
+      const bestI = myBestRound();
       body.innerHTML = `<div class="cal">${s.rounds.map((ci, i) => {
         const [city, flag] = CALENDAR[ci];
         const r = s.results[i];
         let res = '';
-        if (r) { const me = r.cls.find((e) => e.id === 'me'); res = me.jump ? '<span class="tag-jump">JUMP START</span>' : `<span class="${posClass(me.pos)}">${ord(me.pos)}</span> · <span class="num">${fmt(me.t)}</span>`; }
+        if (r) { const me = r.cls.find((e) => e.id === 'me'); res = me.jump ? '<span class="tag-jump">JUMP START</span>' : `<span class="${posClass(me.pos)}">${ord(me.pos)}</span> · <span class="num">${fmt(me.t)}</span>${i === bestI ? '<span class="star" title="Season best start">★</span>' : ''}`; }
         else res = `<span style="color:var(--muted);font-weight:600">${i === s.round ? 'Next race' : 'Upcoming'}</span>`;
         return `<div class="cal-item ${i === s.round ? 'next' : ''}"><div class="rd">ROUND ${i + 1}</div><div>${flag} ${esc(city)}</div><div class="res">${res}</div></div>`;
       }).join('')}</div>`;
@@ -1270,6 +1427,7 @@
       const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
       const best = valid.length ? Math.min(...valid) : null;
       const max = Math.max(0.35, ...valid);
+      const bestI = myBestRound();
       body.innerHTML = `
         <div class="stat-strip" style="margin-top:0">
           <div class="stat"><small>Season best</small><b class="num">${fmt(best)}</b></div>
@@ -1277,8 +1435,9 @@
           <div class="stat"><small>Jump starts</small><b class="num">${mine.length - valid.length}</b></div>
         </div>
         <div class="card" style="margin-top:10px">
-          <div class="eyebrow" style="margin-bottom:10px">Reaction by round (shorter is better)</div>
-          ${mine.length ? `<div class="spark">${mine.map((m) => m.jump ? '<i class="jump" style="height:100%" title="Jump start"></i>' : `<i style="height:${Math.max(4, (m.t / max) * 100)}%" title="${fmt(m.t)}"></i>`).join('')}</div>` : '<p class="hint">No starts yet.</p>'}
+          <div class="eyebrow" style="margin-bottom:10px">Reaction by round · <span style="color:var(--gold)">gold</span> = season best</div>
+          ${mine.length ? `<div class="spark">${mine.map((m, i) => m.jump ? '<i class="jump" style="height:100%" title="Jump start"></i>' : `<i class="${i === bestI ? 'best' : ''}" style="height:${Math.max(4, (m.t / max) * 100)}%" title="${fmt(m.t)}"></i>`).join('')}</div>
+          <div class="spark-flags">${s.results.map((r) => `<span title="${esc(CALENDAR[r.venue][0])}">${CALENDAR[r.venue][1]}</span>`).join('')}</div>` : '<p class="hint">No starts yet.</p>'}
           <p class="hint" style="margin-bottom:0">All-time personal best: <b class="num">${fmt(store.career.pb)}</b></p>
         </div>`;
     }
@@ -1567,6 +1726,7 @@
     const pl = party.players[party.turn];
     ptPhase = 'pass';
     setLights(ptPods, 0);
+    sceneReset(ptStage, pl.color);
     $('#pt-eyebrow').textContent = `Round ${party.round} of ${party.rounds} · Turn ${party.turn + 1} of ${party.players.length}`;
     $('#pt-title').innerHTML = `<span class="pt-name" style="color:${pl.color}">${esc(pl.name)}</span>`;
     ptMsg(`Pass the phone to ${esc(pl.name)}`, 'Everyone gets the same lights this round');
@@ -1605,10 +1765,10 @@
     if (t == null) {
       setLights(ptPods, 0);
       ptStage.classList.remove('flash-red'); void ptStage.offsetWidth; ptStage.classList.add('flash-red');
-      buzz([60, 40, 60]); engine.stall();
+      buzz([60, 40, 60]); engine.stall(); sceneStall(ptStage);
       ptMsg('JUMP START', jumpWhy(why, raw), 'bad');
     } else {
-      engine.launch();
+      engine.launch(); sceneLaunch(ptStage);
       const isBest = pl.best == null || t < pl.best;
       if (isBest) pl.best = t;
       const leader = party.res.filter((r) => !r.jump).sort((a, b) => a.t - b.t)[0];
